@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { PortalShell } from "@/components/portal-shell";
 
 export default function HomePage() {
@@ -26,6 +26,7 @@ export default function HomePage() {
               <li>Lectura rapida por partido y contexto.</li>
               <li>Analista para armar simples o combinadas.</li>
               <li>Historial para medir acierto y ROI real.</li>
+              <li>Bot lab para bankroll, temperatura y riesgo.</li>
             </ul>
           </aside>
         </section>
@@ -42,6 +43,12 @@ export default function HomePage() {
             <h2>Combinadas mas sanas</h2>
             <p className="muted">Seleccionar poco, sumar cuotas con criterio y controlar stake, retorno y riesgo.</p>
             <Link className="textLink" href="/combinador">Preparar combinacion</Link>
+          </article>
+          <article className="panel featurePanel">
+            <p className="eyebrow">Bot</p>
+            <h2>Motor y bankroll</h2>
+            <p className="muted">Medir temperatura, drawdown, presupuesto diario y regimen del bot antes de pasar a live.</p>
+            <Link className="textLink" href="/bot">Abrir bot lab</Link>
           </article>
           <article className="panel featurePanel">
             <p className="eyebrow">Analista</p>
