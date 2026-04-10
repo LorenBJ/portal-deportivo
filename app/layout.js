@@ -1,4 +1,20 @@
+import { Oxanium, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const bodyFont = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-body"
+});
+
+const displayFont = Oxanium({
+  subsets: ["latin"],
+  variable: "--font-display"
+});
+
+const monoFont = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono"
+});
 
 export const metadata = {
   title: "Portal Deportivo Personal",
@@ -8,7 +24,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable}`}>
+        {children}
+      </body>
     </html>
   );
 }
