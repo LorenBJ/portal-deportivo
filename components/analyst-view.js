@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatPercent } from "@/lib/format";
 import { usePortalFeed } from "@/components/use-portal-feed";
 
@@ -10,10 +10,10 @@ const STARTERS = [
   "Si tuvieras que evitar una apuesta aca, cual seria y por que?"
 ];
 
-export function AnalystView() {
+export function AnalystView({ initialMatchId = "", initialPrompt = "" }) {
   const { matches, meta, isLoading } = usePortalFeed();
-  const [matchId, setMatchId] = useState("");
-  const [input, setInput] = useState(STARTERS[0]);
+  const [matchId, setMatchId] = useState(initialMatchId);
+  const [input, setInput] = useState(initialPrompt || STARTERS[0]);
   const [messages, setMessages] = useState([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -21,6 +21,14 @@ export function AnalystView() {
   const selectedMatch = useMemo(() => matches.find((match) => match.id === matchId) ?? matches[0] ?? null, [matchId, matches]);
   const analystBlocked = meta.source !== "live";
   const blockReason = getAnalystBlockReason(meta);
+
+  useEffect(() => {
+    if (initialMatchId) setMatchId(initialMatchId);
+  }, [initialMatchId]);
+
+  useEffect(() => {
+    if (initialPrompt) setInput(initialPrompt);
+  }, [initialPrompt]);
 
   async function sendMessage(customMessage) {
     const content = (customMessage ?? input).trim();
@@ -114,3 +122,4 @@ function getAnalystBlockReason(meta) {
   if (meta.source === "error") return "El analista queda bloqueado hasta que vuelva el feed real.";
   return "El analista queda bloqueado hasta salir del modo demo.";
 }
+

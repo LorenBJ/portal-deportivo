@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #08111f;
   --bg-soft: #0d1729;
   --panel: rgba(10, 18, 31, 0.84);
@@ -589,4 +589,6 @@ input:focus {
     grid-template-columns: 1fr;
   }
 }
+
+
 

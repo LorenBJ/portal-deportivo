@@ -1,6 +1,8 @@
-"use client";
+﻿"use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { buildMatchInsight } from "@/lib/portal-core";
 import { formatKickoff, formatPercent, formatSignedPercent, formatStatus, formatTimestamp } from "@/lib/format";
 import { usePortalFeed } from "@/components/use-portal-feed";
 
@@ -9,6 +11,7 @@ export function AgendaView() {
   const [sport, setSport] = useState("all");
   const [status, setStatus] = useState("all");
   const [valueOnly, setValueOnly] = useState(true);
+  const [selectedMatchId, setSelectedMatchId] = useState("");
   const { matches, meta, isLoading, error } = usePortalFeed();
   const providerIssue = getProviderIssue(meta);
 
@@ -38,6 +41,14 @@ export function AgendaView() {
   const todayMatches = useMemo(() => {
     return filteredMatches.filter((match) => match.status === "live" || match.status === "upcoming");
   }, [filteredMatches]);
+
+  const selectedMatch = useMemo(() => {
+    return todayMatches.find((match) => match.id === selectedMatchId) ?? todayMatches[0] ?? null;
+  }, [selectedMatchId, todayMatches]);
+
+  const selectedInsight = useMemo(() => {
+    return selectedMatch ? buildMatchInsight(selectedMatch) : null;
+  }, [selectedMatch]);
 
   return (
     <section className="contentGrid">
@@ -92,7 +103,7 @@ export function AgendaView() {
           <div className="sectionHead">
             <div>
               <p className="eyebrow">Cabina diaria</p>
-              <h2>Partidos del dia y mercados con valor</h2>
+              <h2>Partidos del dia y mesa de decision</h2>
             </div>
           </div>
           <div className="agendaBoard">
@@ -103,7 +114,12 @@ export function AgendaView() {
               </div>
               <div className="stack compact">
                 {todayMatches.map((match) => (
-                  <article className="matchCard cockpitCard" key={match.id}>
+                  <button
+                    className={`matchCard cockpitCard matchSelectButton${selectedMatch?.id === match.id ? " active" : ""}`}
+                    key={match.id}
+                    onClick={() => setSelectedMatchId(match.id)}
+                    type="button"
+                  >
                     <div className="rowSpread cardTopGap">
                       <div>
                         <div className="rowCompact wrapGap">
@@ -143,34 +159,131 @@ export function AgendaView() {
                           </div>
                         ))}
                     </div>
-                  </article>
+                  </button>
                 ))}
               </div>
             </div>
 
             <div className="agendaLane side">
               <div className="laneHeader">
-                <p className="eyebrow">Radar</p>
-                <strong>{featuredPicks.length} picks top</strong>
+                <p className="eyebrow">Foco</p>
+                <strong>{selectedMatch ? `${selectedMatch.home} vs ${selectedMatch.away}` : "Sin partido"}</strong>
               </div>
-              <div className="stack compact">
-                {featuredPicks.map((pick) => (
-                  <article className="pickCard radarCard" key={pick.id}>
-                    <div className="rowSpread">
-                      <span className="tag">{pick.competition}</span>
-                      <span className={`edge ${pick.recommended ? "positive" : ""}`}>{formatSignedPercent(pick.edge)}</span>
+              {selectedMatch && selectedInsight ? (
+                <div className="stack compact">
+                  <article className="panel focusPanel">
+                    <div className="rowSpread wrapGap">
+                      <div>
+                        <span className="tag">{selectedMatch.competition}</span>
+                        <h3 className="focusTitle">{selectedMatch.home} vs {selectedMatch.away}</h3>
+                        <p className="muted">{formatKickoff(selectedMatch.kickoff)} | {selectedMatch.venue}</p>
+                      </div>
+                      <strong className="score">{selectedMatch.score}</strong>
                     </div>
-                    <h3>{pick.market}</h3>
-                    <p className="muted">{pick.home} vs {pick.away}</p>
                     <div className="metricGrid">
-                      <div><span>Cuota</span><strong>{pick.price.toFixed(2)}</strong></div>
-                      <div><span>Prob.</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
-                      <div><span>Conf.</span><strong>{formatPercent(pick.confidence)}</strong></div>
-                      <div><span>Riesgo</span><strong>{pick.riskTier}</strong></div>
+                      <div className="metricCard">
+                        <span>Favorito</span>
+                        <strong>{selectedInsight.favorite}</strong>
+                      </div>
+                      <div className="metricCard">
+                        <span>Paridad</span>
+                        <strong>{selectedInsight.parity}</strong>
+                      </div>
+                      <div className="metricCard">
+                        <span>Ritmo base</span>
+                        <strong>{selectedInsight.tempo}</strong>
+                      </div>
+                      <div className="metricCard">
+                        <span>Pick top</span>
+                        <strong>{selectedInsight.bestPick?.market ?? "Sin señal"}</strong>
+                      </div>
+                    </div>
+                    <p className="muted focusSummary">{selectedInsight.summary}</p>
+                    <div className="buttonRow">
+                      <Link className="button primary" href={`/analista?match=${selectedMatch.id}&prompt=${encodeURIComponent(selectedInsight.analystPrompt)}`}>Enviar al analista</Link>
+                      <Link className="button secondary" href="/combinador">Abrir combinador</Link>
                     </div>
                   </article>
-                ))}
-              </div>
+
+                  <article className="panel">
+                    <div className="sectionHead">
+                      <div>
+                        <p className="eyebrow">Mercados</p>
+                        <h3>Radar del partido</h3>
+                      </div>
+                    </div>
+                    <div className="stack compact">
+                      {selectedInsight.recommended.slice(0, 3).map((pick) => (
+                        <div className="oddBox" key={pick.id}>
+                          <strong>{pick.market}</strong>
+                          <span>Cuota {pick.price.toFixed(2)}</span>
+                          <span>Conf. {formatPercent(pick.confidence)}</span>
+                          <span className="positiveText">Apta | Edge {formatSignedPercent(pick.edge)}</span>
+                        </div>
+                      ))}
+                      {!selectedInsight.recommended.length ? <p className="muted">Sin picks aptos en este partido.</p> : null}
+                      {selectedInsight.watchlist.length ? <p className="muted">Mercados a vigilar</p> : null}
+                      {selectedInsight.watchlist.map((pick) => (
+                        <div className="oddBox watchBox" key={pick.id}>
+                          <strong>{pick.market}</strong>
+                          <span>Cuota {pick.price.toFixed(2)}</span>
+                          <span>Conf. {formatPercent(pick.confidence)}</span>
+                          <span className="muted">Cauta | Edge {formatSignedPercent(pick.edge)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="panel">
+                    <div className="sectionHead">
+                      <div>
+                        <p className="eyebrow">Stats Layer</p>
+                        <h3>Bloque listo para ultimos 5</h3>
+                      </div>
+                    </div>
+                    <p className="muted">
+                      Aca voy a conectar el proveedor de estadisticas reales para mostrar corners, tarjetas, tiros, tiros al arco, saques de arco y laterales por equipo.
+                    </p>
+                    <div className="statsPlaceholderGrid">
+                      {["Corners", "Tarjetas", "Tiros", "Tiros al arco", "Saques de arco", "Laterales"].map((label) => (
+                        <div className="metricCard placeholderStat" key={label}>
+                          <span>{label}</span>
+                          <strong>Pendiente de feed</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="panel">
+                    <div className="sectionHead">
+                      <div>
+                        <p className="eyebrow">Top del dia</p>
+                        <h3>Oportunidades globales</h3>
+                      </div>
+                    </div>
+                    <div className="stack compact">
+                      {featuredPicks.map((pick) => (
+                        <article className="pickCard radarCard" key={pick.id}>
+                          <div className="rowSpread">
+                            <span className="tag">{pick.competition}</span>
+                            <span className={`edge ${pick.recommended ? "positive" : ""}`}>{formatSignedPercent(pick.edge)}</span>
+                          </div>
+                          <h3>{pick.market}</h3>
+                          <p className="muted">{pick.home} vs {pick.away}</p>
+                          <div className="metricGrid">
+                            <div><span>Cuota</span><strong>{pick.price.toFixed(2)}</strong></div>
+                            <div><span>Prob.</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
+                            <div><span>Conf.</span><strong>{formatPercent(pick.confidence)}</strong></div>
+                            <div><span>Riesgo</span><strong>{pick.riskTier}</strong></div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </article>
+                </div>
+              ) : (
+                <p className="muted">Sin partidos para mostrar.</p>
+              )}
             </div>
           </div>
         </section>
@@ -187,3 +300,4 @@ function getProviderIssue(meta) {
   if (meta.reason === "all_sports_failed") return "Todos los deportes fallaron en el proveedor.";
   return "El proveedor no devolvio partidos utilizables.";
 }
+
