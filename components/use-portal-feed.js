@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 
@@ -35,7 +35,7 @@ export function usePortalFeed() {
     }
 
     load();
-    const intervalId = window.setInterval(load, 60000);
+    const intervalId = window.setInterval(load, 180000);
 
     return () => {
       cancelled = true;

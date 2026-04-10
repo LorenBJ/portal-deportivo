@@ -295,9 +295,10 @@ export function AgendaView() {
 function getProviderIssue(meta) {
   if (meta.source !== "error") return "";
   const firstError = meta.errors?.[0] ?? "";
-  if (firstError.includes(":401")) return "La ODDS_API_KEY fue rechazada por el proveedor.";
+  if (firstError.includes(":401")) return "La API_FOOTBALL_KEY fue rechazada por el proveedor.";
   if (firstError.includes(":429")) return "El proveedor rechazo requests por limite o credito.";
-  if (meta.reason === "all_sports_failed") return "Todos los deportes fallaron en el proveedor.";
+  if (meta.reason === "all_leagues_failed") return "Todas las ligas fallaron en el proveedor.";
   return "El proveedor no devolvio partidos utilizables.";
 }
+
 

@@ -1,6 +1,6 @@
-# Portal Deportivo Personal
+﻿# Portal Deportivo Personal
 
-Portal multipagina en Next.js con feed de cuotas, motor propio de picks y analista conversacional.
+Portal multipagina en Next.js con feed de futbol, motor propio de picks y analista conversacional.
 
 ## Stack
 
@@ -9,6 +9,7 @@ Portal multipagina en Next.js con feed de cuotas, motor propio de picks y analis
 - Feed server-side `/api/feed`
 - Chat analyst `/api/analyst`
 - Historial en `localStorage`
+- Provider de futbol: API-Football
 
 ## Variables
 
@@ -16,10 +17,10 @@ Portal multipagina en Next.js con feed de cuotas, motor propio de picks y analis
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5.4-mini
 OPENAI_REASONING_EFFORT=low
-ODDS_API_KEY=
-ODDS_API_REGIONS=eu
-ODDS_API_MARKETS=h2h,spreads,totals
-ODDS_API_SPORT_KEYS=soccer_argentina_primera_division,soccer_epl,soccer_spain_la_liga,soccer_germany_bundesliga,soccer_italy_serie_a,soccer_france_ligue_one,soccer_uefa_champs_league,soccer_conmebol_copa_libertadores,soccer_conmebol_copa_sudamericana,basketball_nba
+API_FOOTBALL_KEY=
+API_FOOTBALL_TIMEZONE=America/Buenos_Aires
+API_FOOTBALL_CACHE_MS=180000
+API_FOOTBALL_LEAGUES=128:calendar,39:split,140:split,78:split,135:split,61:split,2:split,13:calendar,11:calendar
 ```
 
 ## Motor v2
@@ -33,3 +34,9 @@ ODDS_API_SPORT_KEYS=soccer_argentina_primera_division,soccer_epl,soccer_spain_la
 ## Chat
 
 El analista usa el feed actual y el partido seleccionado. Si falta `OPENAI_API_KEY`, el chat no responde.
+
+## Notas de feed
+
+- El proyecto ahora usa API-Football solo para futbol.
+- NBA fue removida del feed principal.
+- El feed usa cache corta para reducir consumo de requests.
