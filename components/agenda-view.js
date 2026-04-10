@@ -96,6 +96,7 @@ export function AgendaView() {
             <p className="eyebrow">Estado del feed</p>
             <h2>No estan entrando datos reales.</h2>
             <p className="muted">{providerIssue ?? "La credencial o el plan del proveedor esta rechazando las requests."}</p>
+            {meta.errors?.[0] ? <p className="muted">Detalle: {meta.errors[0]}</p> : null}
           </section>
         ) : null}
 
@@ -245,7 +246,7 @@ export function AgendaView() {
                       Aca voy a conectar el proveedor de estadisticas reales para mostrar corners, tarjetas, tiros, tiros al arco, saques de arco y laterales por equipo.
                     </p>
                     <div className="statsPlaceholderGrid">
-                      {["Corners", "Tarjetas", "Tiros", "Tiros al arco", "Saques de arco", "Laterales"].map((label) => (
+                      {['Corners', 'Tarjetas', 'Tiros', 'Tiros al arco', 'Saques de arco', 'Laterales'].map((label) => (
                         <div className="metricCard placeholderStat" key={label}>
                           <span>{label}</span>
                           <strong>Pendiente de feed</strong>
@@ -300,5 +301,3 @@ function getProviderIssue(meta) {
   if (meta.reason === "all_leagues_failed") return "Todas las ligas fallaron en el proveedor.";
   return "El proveedor no devolvio partidos utilizables.";
 }
-
-
