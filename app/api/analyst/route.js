@@ -64,11 +64,50 @@ export async function POST(request) {
     })
   });
 
+  const data = await response.json().catch(() => null);
+
   if (!response.ok) {
-    const errorText = await response.text();
-    return NextResponse.json({ error: "openai_request_failed", detail: errorText }, { status: 502 });
+    return NextResponse.json(
+      { error: "openai_request_failed", detail: extractErrorDetail(data) },
+      { status: 502 }
+    );
   }
 
-  const data = await response.json();
-  return NextResponse.json({ reply: data.output_text ?? "Sin respuesta util." });
+  const reply = extractOutputText(data);
+  if (!reply) {
+    return NextResponse.json(
+      { error: "empty_model_response", detail: "El modelo respondio sin texto util." },
+      { status: 502 }
+    );
+  }
+
+  return NextResponse.json({ reply });
+}
+
+function extractOutputText(data) {
+  if (!data) return "";
+  if (typeof data.output_text === "string" && data.output_text.trim()) {
+    return data.output_text.trim();
+  }
+
+  const chunks = [];
+  for (const item of data.output ?? []) {
+    for (const content of item.content ?? []) {
+      if (content.type === "output_text" && typeof content.text === "string") {
+        chunks.push(content.text);
+      }
+      if (content.type === "text" && typeof content.text === "string") {
+        chunks.push(content.text);
+      }
+    }
+  }
+
+  return chunks.join("\n").trim();
+}
+
+function extractErrorDetail(data) {
+  if (!data) return "Sin detalle del proveedor.";
+  if (typeof data.error?.message === "string") return data.error.message;
+  if (typeof data.message === "string") return data.message;
+  return "Error desconocido del proveedor.";
 }
