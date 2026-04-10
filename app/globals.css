@@ -1,20 +1,22 @@
 ﻿:root {
-  --bg: #08111f;
-  --bg-soft: #0d1729;
-  --panel: rgba(10, 18, 31, 0.84);
-  --panel-strong: rgba(15, 25, 42, 0.96);
-  --panel-elevated: rgba(17, 30, 50, 0.98);
-  --border: rgba(126, 156, 196, 0.16);
-  --text: #f4f8ff;
-  --muted: #9fb3cf;
-  --accent: #3dd9c4;
-  --accent-strong: #67f3df;
-  --accent-soft: rgba(61, 217, 196, 0.14);
-  --gold: #ffbf69;
-  --gold-soft: rgba(255, 191, 105, 0.14);
-  --danger: #ff7a90;
-  --danger-soft: rgba(255, 122, 144, 0.16);
-  --shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+  --bg: #0f1724;
+  --bg-soft: #162131;
+  --panel: rgba(25, 35, 52, 0.88);
+  --panel-strong: rgba(31, 43, 64, 0.96);
+  --panel-elevated: rgba(40, 54, 77, 0.98);
+  --panel-muted: rgba(57, 73, 98, 0.66);
+  --border: rgba(173, 187, 209, 0.18);
+  --border-strong: rgba(201, 213, 231, 0.24);
+  --text: #f5f7fb;
+  --muted: #b4c0d4;
+  --accent: #53d3c2;
+  --accent-strong: #87efe1;
+  --accent-soft: rgba(83, 211, 194, 0.16);
+  --gold: #f7c37a;
+  --gold-soft: rgba(247, 195, 122, 0.14);
+  --danger: #ff8fa2;
+  --danger-soft: rgba(255, 143, 162, 0.16);
+  --shadow: 0 26px 70px rgba(0, 0, 0, 0.28);
 }
 
 * {
@@ -31,9 +33,9 @@ body {
   font-family: var(--font-body), Arial, Helvetica, sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(61, 217, 196, 0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(255, 191, 105, 0.12), transparent 22%),
-    linear-gradient(180deg, #07101c 0%, #091321 54%, #07101d 100%);
+    radial-gradient(circle at top left, rgba(83, 211, 194, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(247, 195, 122, 0.08), transparent 22%),
+    linear-gradient(180deg, #111b29 0%, #162233 52%, #121b29 100%);
 }
 
 body::before {
@@ -42,10 +44,10 @@ body::before {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(149, 176, 212, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(149, 176, 212, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(178, 191, 211, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(178, 191, 211, 0.045) 1px, transparent 1px);
   background-size: 34px 34px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 90%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 92%);
 }
 
 button,
@@ -87,6 +89,12 @@ a {
 .topbar {
   gap: 18px;
   margin-bottom: 30px;
+  padding: 14px 18px;
+  border-radius: 28px;
+  background: rgba(26, 37, 55, 0.52);
+  border: 1px solid rgba(173, 187, 209, 0.12);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
 }
 
 .brand {
@@ -117,9 +125,9 @@ h3 {
   display: grid;
   place-items: center;
   border-radius: 16px;
-  background: linear-gradient(135deg, #12b8c1, #1f6feb 68%, #8a5cff 100%);
+  background: linear-gradient(135deg, #1cc8c4, #3a91ff 68%, #7b7bff 100%);
   color: white;
-  box-shadow: 0 12px 30px rgba(31, 111, 235, 0.28);
+  box-shadow: 0 12px 30px rgba(44, 117, 222, 0.26);
   font-weight: 800;
   font-family: var(--font-display), sans-serif;
 }
@@ -140,13 +148,14 @@ h3 {
 .navLink:hover {
   color: var(--text);
   transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .navLink.active {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(103, 243, 223, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(135, 239, 225, 0.18);
   color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .page,
@@ -240,7 +249,7 @@ h3 {
 }
 
 .softPanel {
-  background: linear-gradient(180deg, rgba(13, 24, 40, 0.92), rgba(10, 19, 33, 0.88));
+  background: linear-gradient(180deg, rgba(34, 46, 67, 0.94), rgba(23, 33, 49, 0.9));
 }
 
 .button {
@@ -256,15 +265,15 @@ h3 {
 }
 
 .button.primary {
-  background: linear-gradient(135deg, var(--accent), #1591ff);
-  color: #03131c;
+  background: linear-gradient(135deg, var(--accent), #4da1ff);
+  color: #08202b;
   font-weight: 700;
 }
 
 .button.secondary {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text);
-  border-color: rgba(126, 156, 196, 0.18);
+  border-color: rgba(173, 187, 209, 0.18);
 }
 
 .fullWidth {
@@ -294,15 +303,15 @@ input {
   margin-top: 8px;
   padding: 13px 15px;
   border-radius: 16px;
-  border: 1px solid rgba(126, 156, 196, 0.2);
-  background: rgba(4, 12, 24, 0.7);
+  border: 1px solid rgba(173, 187, 209, 0.18);
+  background: rgba(20, 30, 46, 0.9);
   color: var(--text);
 }
 
 select:focus,
 input:focus {
-  outline: 2px solid rgba(103, 243, 223, 0.2);
-  border-color: rgba(103, 243, 223, 0.35);
+  outline: 2px solid rgba(135, 239, 225, 0.18);
+  border-color: rgba(135, 239, 225, 0.34);
 }
 
 .checkboxRow {
@@ -347,13 +356,14 @@ input:focus {
 }
 
 .tag {
-  background: var(--gold-soft);
-  color: var(--gold);
+  background: rgba(121, 136, 160, 0.2);
+  color: #d8e0ec;
+  border: 1px solid rgba(180, 192, 212, 0.12);
 }
 
 .tag.subtle,
 .tag.pending {
-  background: rgba(126, 156, 196, 0.1);
+  background: rgba(121, 136, 160, 0.16);
   color: var(--muted);
 }
 
@@ -375,8 +385,16 @@ input:focus {
   border-radius: 24px;
 }
 
+.pickCard,
+.historyCard,
+.matchCard,
+.metricCard,
+.oddBox {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 16px 28px rgba(0, 0, 0, 0.14);
+}
+
 .pickCard.selected {
-  outline: 2px solid rgba(61, 217, 196, 0.26);
+  outline: 2px solid rgba(83, 211, 194, 0.3);
 }
 
 .metricGrid,
@@ -398,7 +416,8 @@ input:focus {
 .oddBox {
   padding: 15px;
   border-radius: 18px;
-  background: var(--panel-elevated);
+  background: linear-gradient(180deg, rgba(63, 79, 104, 0.22), rgba(40, 54, 77, 0.98));
+  border: 1px solid var(--border-strong);
 }
 
 .metricCard strong,
@@ -431,7 +450,7 @@ input:focus {
   margin: 18px 0;
   padding: 16px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .selectedBox.empty {
@@ -442,7 +461,7 @@ input:focus {
 .historyPick + .historyPick {
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid rgba(126, 156, 196, 0.12);
+  border-top: 1px solid rgba(173, 187, 209, 0.12);
 }
 
 .summaryStack {
@@ -470,8 +489,8 @@ input:focus {
   padding: 15px;
   margin-bottom: 18px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(61, 217, 196, 0.1), rgba(103, 243, 223, 0.04));
-  border: 1px solid rgba(103, 243, 223, 0.14);
+  background: linear-gradient(180deg, rgba(94, 112, 140, 0.22), rgba(53, 69, 94, 0.44));
+  border: 1px solid rgba(186, 198, 216, 0.18);
 }
 
 .warningText {
@@ -550,15 +569,15 @@ input:focus {
   padding: 16px 18px;
   border-radius: 22px;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.05);
 }
 
 .chatBubble.user {
-  background: rgba(21, 145, 255, 0.12);
+  background: rgba(77, 161, 255, 0.12);
 }
 
 .chatBubble.assistant {
-  background: rgba(61, 217, 196, 0.08);
+  background: rgba(83, 211, 194, 0.1);
 }
 
 .chatBubble p {
@@ -578,8 +597,8 @@ input:focus {
   min-height: 110px;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid rgba(126, 156, 196, 0.2);
-  background: rgba(4, 12, 24, 0.7);
+  border: 1px solid rgba(173, 187, 209, 0.18);
+  background: rgba(20, 30, 46, 0.92);
   color: var(--text);
   resize: vertical;
 }
@@ -589,9 +608,6 @@ input:focus {
     grid-template-columns: 1fr;
   }
 }
-
-
-
 
 .botHeroGrid {
   display: grid;
@@ -619,14 +635,14 @@ input:focus {
   height: 14px;
   margin: 16px 0 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
 
 .heatMeterFill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #ff7a90 0%, #ffbf69 45%, #3dd9c4 100%);
+  background: linear-gradient(90deg, #ff8fa2 0%, #f7c37a 45%, #53d3c2 100%);
 }
 
 .botStatsGrid {
@@ -665,8 +681,8 @@ input:focus {
   justify-content: center;
   padding: 10px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(126, 156, 196, 0.12);
+  background: linear-gradient(180deg, rgba(93, 109, 133, 0.18), rgba(53, 67, 90, 0.48));
+  border: 1px solid rgba(201, 213, 231, 0.18);
 }
 
 .sparkBar {
@@ -675,11 +691,11 @@ input:focus {
 }
 
 .sparkBar.up {
-  background: linear-gradient(180deg, rgba(61, 217, 196, 0.4), rgba(61, 217, 196, 0.95));
+  background: linear-gradient(180deg, rgba(83, 211, 194, 0.4), rgba(83, 211, 194, 0.95));
 }
 
 .sparkBar.down {
-  background: linear-gradient(180deg, rgba(255, 122, 144, 0.35), rgba(255, 122, 144, 0.95));
+  background: linear-gradient(180deg, rgba(255, 143, 162, 0.35), rgba(255, 143, 162, 0.95));
 }
 
 .botDecisionGrid {
