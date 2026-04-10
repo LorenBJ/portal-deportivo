@@ -6,7 +6,7 @@ export default function CombinadorPage() {
   return (
     <PortalShell pathname="/combinador">
       <main className="page">
-        <PageHeader eyebrow="Simulacion" title="Combinador con stake y retorno estimado" />
+        <PageHeader eyebrow="Simulacion" note="Cuotas y mercados consumidos desde el backend" title="Combinador con stake y retorno estimado" />
         <CombinadorView />
       </main>
     </PortalShell>

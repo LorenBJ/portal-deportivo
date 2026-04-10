@@ -446,3 +446,20 @@ input {
     font-size: 2.4rem;
   }
 }
+
+.feedStatusCard {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 18px;
+  background: rgba(19, 111, 99, 0.08);
+}
+
+.feedStatusCard span {
+  color: var(--muted);
+}
+
+.warningText {
+  color: var(--danger);
+}

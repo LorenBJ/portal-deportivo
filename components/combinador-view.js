@@ -2,17 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { calculateCombo, getAllPicks } from "@/lib/portal-core";
-import { formatMoney, formatPercent, formatSignedPercent, formatStatus } from "@/lib/format";
+import { formatKickoff, formatMoney, formatPercent, formatSignedPercent, formatStatus, formatTimestamp } from "@/lib/format";
+import { usePortalFeed } from "@/components/use-portal-feed";
 
 const STORAGE_KEY = "portal-deportivo-state";
-const allPicks = getAllPicks()
-  .filter((pick) => pick.edge > 0)
-  .sort((a, b) => (b.adjustedProbability + b.edge) - (a.adjustedProbability + a.edge));
 
 export function CombinadorView() {
   const [selectedPicks, setSelectedPicks] = useState([]);
   const [stake, setStake] = useState(1000);
   const [ready, setReady] = useState(false);
+  const { matches, meta, isLoading } = usePortalFeed();
+
+  const allPicks = useMemo(() => {
+    return getAllPicks(matches)
+      .filter((pick) => pick.edge > 0)
+      .sort((a, b) => (b.adjustedProbability + b.edge) - (a.adjustedProbability + a.edge));
+  }, [matches]);
 
   useEffect(() => {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -92,6 +97,10 @@ export function CombinadorView() {
     <section className="contentGrid">
       <aside className="panel stickyPanel">
         <h2>Preparacion</h2>
+        <div className="feedStatusCard">
+          <strong>{meta.source === "mock" ? "Modo demo" : "Datos reales"}</strong>
+          <span>{meta.generatedAt ? `Actualizado ${formatTimestamp(meta.generatedAt)}` : "Esperando feed"}</span>
+        </div>
         <label className="field">
           <span>Monto a apostar</span>
           <input
@@ -131,35 +140,16 @@ export function CombinadorView() {
           {selectedPicks.length ? (
             <div className="summaryStack">
               <div className="metricGrid spacious">
-                <div className="metricCard">
-                  <span>Stake</span>
-                  <strong>{formatMoney(Number(stake) || 0)}</strong>
-                </div>
-                <div className="metricCard">
-                  <span>Cuota total</span>
-                  <strong>{summary.combinedOdds.toFixed(2)}</strong>
-                </div>
-                <div className="metricCard">
-                  <span>Probabilidad</span>
-                  <strong>{formatPercent(summary.combinedProbability)}</strong>
-                </div>
-                <div className="metricCard">
-                  <span>Retorno potencial</span>
-                  <strong>{formatMoney(summary.potentialReturn)}</strong>
-                </div>
-                <div className="metricCard">
-                  <span>Ganancia neta</span>
-                  <strong>{formatMoney(summary.netProfit)}</strong>
-                </div>
+                <div className="metricCard"><span>Stake</span><strong>{formatMoney(Number(stake) || 0)}</strong></div>
+                <div className="metricCard"><span>Cuota total</span><strong>{summary.combinedOdds.toFixed(2)}</strong></div>
+                <div className="metricCard"><span>Probabilidad</span><strong>{formatPercent(summary.combinedProbability)}</strong></div>
+                <div className="metricCard"><span>Retorno potencial</span><strong>{formatMoney(summary.potentialReturn)}</strong></div>
+                <div className="metricCard"><span>Ganancia neta</span><strong>{formatMoney(summary.netProfit)}</strong></div>
               </div>
-              <button className="button primary" onClick={saveBet} type="button">
-                Guardar apuesta en historial
-              </button>
+              <button className="button primary" onClick={saveBet} type="button">Guardar apuesta en historial</button>
             </div>
           ) : (
-            <p className="muted">
-              Elegi entre 1 y 3 picks para calcular cuota total, probabilidad conjunta y retorno potencial.
-            </p>
+            <p className="muted">Elegi entre 1 y 3 picks para calcular cuota total, probabilidad conjunta y retorno potencial.</p>
           )}
         </section>
 
@@ -170,6 +160,7 @@ export function CombinadorView() {
               <h2>Picks sugeridos para combinar</h2>
             </div>
           </div>
+          {isLoading ? <p className="muted">Cargando mercados disponibles...</p> : null}
           <div className="cardGrid">
             {allPicks.slice(0, 12).map((pick) => {
               const selected = selectedPicks.some((entry) => entry.id === pick.id);
@@ -177,25 +168,15 @@ export function CombinadorView() {
                 <article className={`pickCard${selected ? " selected" : ""}`} key={pick.id}>
                   <div className="rowSpread">
                     <span className="tag">{pick.competition}</span>
-                    <span className={`edge ${pick.edge > 0 ? "positive" : ""}`}>
-                      {formatSignedPercent(pick.edge)}
-                    </span>
+                    <span className={`edge ${pick.edge > 0 ? "positive" : ""}`}>{formatSignedPercent(pick.edge)}</span>
                   </div>
                   <h3>{pick.market}</h3>
                   <p className="muted">{pick.home} vs {pick.away}</p>
                   <div className="metricGrid">
-                    <div>
-                      <span>Cuota</span>
-                      <strong>{pick.price.toFixed(2)}</strong>
-                    </div>
-                    <div>
-                      <span>Modelo</span>
-                      <strong>{formatPercent(pick.adjustedProbability)}</strong>
-                    </div>
-                    <div>
-                      <span>Estado</span>
-                      <strong>{formatStatus(pick.status)}</strong>
-                    </div>
+                    <div><span>Cuota</span><strong>{pick.price.toFixed(2)}</strong></div>
+                    <div><span>Consenso</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
+                    <div><span>Inicio</span><strong>{formatKickoff(pick.kickoff)}</strong></div>
+                    <div><span>Estado</span><strong>{formatStatus(pick.status)}</strong></div>
                   </div>
                   <button className="button secondary fullWidth" onClick={() => togglePick(pick)} type="button">
                     {selected ? "Quitar" : "Agregar"}

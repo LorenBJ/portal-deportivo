@@ -1,28 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatPercent, formatSignedPercent, formatStatus } from "@/lib/format";
-import { getMatches } from "@/lib/portal-core";
-
-const allMatches = getMatches();
+import { formatKickoff, formatPercent, formatSignedPercent, formatStatus, formatTimestamp } from "@/lib/format";
+import { usePortalFeed } from "@/components/use-portal-feed";
 
 export function AgendaView() {
   const [competition, setCompetition] = useState("all");
   const [sport, setSport] = useState("all");
   const [status, setStatus] = useState("all");
   const [valueOnly, setValueOnly] = useState(false);
+  const { matches, meta, isLoading, error } = usePortalFeed();
 
   const competitions = useMemo(
-    () => ["all", ...new Set(allMatches.map((match) => match.competition))],
-    []
+    () => ["all", ...new Set(matches.map((match) => match.competition))],
+    [matches]
   );
   const sports = useMemo(
-    () => ["all", ...new Set(allMatches.map((match) => match.sport))],
-    []
+    () => ["all", ...new Set(matches.map((match) => match.sport))],
+    [matches]
   );
 
   const filteredMatches = useMemo(() => {
-    return allMatches
+    return matches
       .filter((match) => competition === "all" || match.competition === competition)
       .filter((match) => sport === "all" || match.sport === sport)
       .filter((match) => status === "all" || match.status === status)
@@ -31,7 +30,7 @@ export function AgendaView() {
         odds: match.odds.filter((pick) => !valueOnly || pick.edge > 0)
       }))
       .filter((match) => match.odds.length > 0);
-  }, [competition, sport, status, valueOnly]);
+  }, [competition, matches, sport, status, valueOnly]);
 
   const featuredPicks = useMemo(() => {
     return filteredMatches
@@ -44,6 +43,14 @@ export function AgendaView() {
     <section className="contentGrid">
       <aside className="panel stickyPanel">
         <h2>Filtros</h2>
+        <div className="feedStatusCard">
+          <strong>{meta.source === "mock" ? "Modo demo" : "Datos reales"}</strong>
+          <span>
+            {meta.source === "mock"
+              ? "Todavia no hay clave configurada o el proveedor no respondio."
+              : `Actualizado ${formatTimestamp(meta.generatedAt)}`}
+          </span>
+        </div>
         <label className="field">
           <span>Competicion</span>
           <select value={competition} onChange={(event) => setCompetition(event.target.value)}>
@@ -83,6 +90,9 @@ export function AgendaView() {
       </aside>
 
       <div className="stack">
+        {error ? <p className="panel warningText">No pude refrescar el feed: {error}</p> : null}
+        {isLoading ? <p className="panel muted">Cargando agenda y cuotas...</p> : null}
+
         <section className="panel">
           <div className="sectionHead">
             <div>
@@ -107,7 +117,7 @@ export function AgendaView() {
                     <strong>{pick.price.toFixed(2)}</strong>
                   </div>
                   <div>
-                    <span>Modelo</span>
+                    <span>Consenso</span>
                     <strong>{formatPercent(pick.adjustedProbability)}</strong>
                   </div>
                   <div>
@@ -137,7 +147,7 @@ export function AgendaView() {
                       <span className="tag subtle">{formatStatus(match.status)}</span>
                     </div>
                     <h3>{match.home} vs {match.away}</h3>
-                    <p className="muted">{match.kickoff} • {match.venue} • {match.sport}</p>
+                    <p className="muted">{formatKickoff(match.kickoff)} | {match.venue} | {match.sport}</p>
                   </div>
                   <strong className="score">{match.score}</strong>
                 </div>
@@ -146,7 +156,7 @@ export function AgendaView() {
                     <div className="oddBox" key={pick.id}>
                       <strong>{pick.market}</strong>
                       <span>Cuota {pick.price.toFixed(2)}</span>
-                      <span>Prob. modelo {formatPercent(pick.adjustedProbability)}</span>
+                      <span>Consenso {formatPercent(pick.adjustedProbability)}</span>
                       <span className={pick.edge > 0 ? "positiveText" : ""}>
                         Edge {formatSignedPercent(pick.edge)}
                       </span>

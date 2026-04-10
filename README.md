@@ -1,47 +1,44 @@
 # Portal Deportivo Personal
 
-Portal migrado a Next.js con enfoque multipagina para desplegar rapido en Vercel.
+Portal multipagina en Next.js, desplegado en Vercel y listo para conectarse a cuotas reales.
 
-## Estructura actual
-
-- `/`: portada simple con navegacion
-- `/agenda`: filtros, partidos y picks destacados
-- `/combinador`: seleccion de picks, stake y retorno potencial
-- `/historial`: historial persistido en el navegador con acierto y ROI
-
-## Stack
+## Stack actual
 
 - Next.js 16
 - React 19
 - App Router
-- Estado local persistido con `localStorage`
+- Historial persistido en `localStorage`
+- Feed server-side en `/api/feed`
+
+## Datos reales
+
+La primera integracion real usa `The Odds API` para agenda, estados y cuotas de competencias configuradas.
+
+Variables de entorno:
+
+```bash
+ODDS_API_KEY=
+ODDS_API_REGIONS=eu
+ODDS_API_MARKETS=h2h,spreads,totals
+ODDS_API_SPORT_KEYS=soccer_argentina_primera_division,soccer_conmebol_copa_libertadores,soccer_uefa_champs_league,soccer_epl,basketball_nba
+```
+
+Si falta la clave, la app vuelve automaticamente al modo demo con datos mock.
 
 ## Desarrollo local
-
-Si tu terminal ya reconoce `node` y `npm`, usa:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Si en Windows recien lo instalaste y la terminal todavia no lo ve, cerra y vuelve a abrir Codex o una terminal nueva.
+## Produccion
 
-## Despliegue en Vercel
-
-1. Subi el proyecto a GitHub.
-2. Importa el repositorio en Vercel.
-3. Vercel detecta Next.js automaticamente.
-4. Cada push a la rama principal genera un nuevo deploy.
+Cada push a `main` genera deploy automatico en Vercel.
 
 ## Siguiente paso recomendado
 
-1. Mover historial a una base real.
+1. Guardar historial en base de datos.
 2. Agregar autenticacion privada.
-3. Conectar una API de fixtures.
-4. Conectar una API de cuotas en vivo.
-5. Crear endpoints server-side para no exponer claves.
-
-## Nota sobre esta maquina
-
-El proyecto esta dentro de una carpeta de OneDrive. Durante la validacion local el `build` de Next fallo al renombrar archivos temporales dentro de `.next`, algo que suele pasar por bloqueo/sincronizacion del sistema de archivos. Si vuelve a pasar, la solucion mas estable es mover el repo fuera de OneDrive o compilar con permisos ampliados.
+3. Enriquecer el modelo propio para picks destacados.
+4. Sumar un segundo proveedor de fixtures si queres detalle adicional por liga.
