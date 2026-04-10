@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatDecimal, formatMoney, formatPercent } from "@/lib/format";
-import { getBotMetrics } from "@/lib/bot-lab";
+import { buildBotTickets, getBotMetrics } from "@/lib/bot-lab";
 
 const STATE_KEY = "portal-deportivo-state";
 const BOT_KEY = "portal-deportivo-bot";
+const TICKETS_KEY = "portal-deportivo-bot-tickets";
 
 const DEFAULT_SETTINGS = {
   bankrollStart: 150000,
@@ -22,10 +23,14 @@ export function BotView() {
   const [bets, setBets] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [savedAt, setSavedAt] = useState(null);
+  const [tickets, setTickets] = useState([]);
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
+  const [notifyState, setNotifyState] = useState(null);
 
   useEffect(() => {
     const rawState = window.localStorage.getItem(STATE_KEY);
     const rawBot = window.localStorage.getItem(BOT_KEY);
+    const rawTickets = window.localStorage.getItem(TICKETS_KEY);
 
     if (rawState) {
       try {
@@ -39,9 +44,30 @@ export function BotView() {
         setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(rawBot) });
       } catch {}
     }
+
+    if (rawTickets) {
+      try {
+        setTickets(JSON.parse(rawTickets));
+      } catch {}
+    }
+
+    fetch("/api/notify")
+      .then((response) => response.json())
+      .then((data) => setTelegramConfigured(Boolean(data.telegramConfigured)))
+      .catch(() => setTelegramConfigured(false));
   }, []);
 
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
+
+  useEffect(() => {
+    const generated = buildBotTickets(bets, settings);
+    setTickets((current) => {
+      const currentMap = new Map(current.map((ticket) => [ticket.betId, ticket]));
+      const next = generated.map((ticket) => currentMap.get(ticket.betId) ? { ...ticket, ...currentMap.get(ticket.betId) } : ticket);
+      window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, [bets, settings]);
 
   function updateField(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -54,13 +80,56 @@ export function BotView() {
       minOdds: mode === "recovery" ? 1.1 : mode === "attack" ? 1.4 : 1.22,
       maxOdds: mode === "recovery" ? 1.35 : mode === "attack" ? 2.4 : 1.8,
       maxBetsPerDay: mode === "recovery" ? 20 : mode === "attack" ? 8 : 12,
-      baseStakePct: mode === "recovery" ? 0.45 : mode === "attack" ? 1.35 : 1
+      baseStakePct: mode === "recovery" ? 0.45 : mode === "attack" ? 1.35 : 1,
+      autoMode: mode === "balanced" ? current.autoMode : "semi-auto"
     }));
   }
 
   function saveSettings() {
     window.localStorage.setItem(BOT_KEY, JSON.stringify(settings));
     setSavedAt(new Date().toISOString());
+  }
+
+  function persistTickets(next) {
+    setTickets(next);
+    window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
+  }
+
+  function updateTicket(ticketId, patch) {
+    persistTickets(tickets.map((ticket) => (ticket.id === ticketId ? { ...ticket, ...patch } : ticket)));
+  }
+
+  async function sendTestAlert() {
+    setNotifyState("Enviando alerta de prueba...");
+    try {
+      const response = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "test" })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "test_failed");
+      setNotifyState("Alerta de prueba enviada.");
+    } catch (error) {
+      setNotifyState(`Error: ${error.message}`);
+    }
+  }
+
+  async function alertTicket(ticket) {
+    setNotifyState(`Enviando ticket ${ticket.match}...`);
+    try {
+      const response = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "ticket", ticket })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "ticket_notify_failed");
+      updateTicket(ticket.id, { status: "alerted", alertedAt: new Date().toISOString() });
+      setNotifyState("Ticket enviado a Telegram.");
+    } catch (error) {
+      setNotifyState(`Error: ${error.message}`);
+    }
   }
 
   const plan = metrics.actionPlan;
@@ -76,7 +145,7 @@ export function BotView() {
           </p>
           <div className="metricGrid spacious">
             <div className="metricCard"><span>Modo actual</span><strong>{modeLabel(metrics.mode)}</strong></div>
-            <div className="metricCard"><span>Bot</span><strong>{settings.autoMode === "live" ? "Live armado" : "Paper"}</strong></div>
+            <div className="metricCard"><span>Bot</span><strong>{settings.autoMode === "semi-auto" ? "Semi-auto" : settings.autoMode === "live" ? "Live armado" : "Paper"}</strong></div>
             <div className="metricCard"><span>Temperatura</span><strong>{formatDecimal(metrics.temperature, 0)}/100</strong></div>
             <div className="metricCard"><span>Bankroll</span><strong>{formatMoney(metrics.currentBankroll)}</strong></div>
           </div>
@@ -85,22 +154,21 @@ export function BotView() {
         <article className="panel botHeatPanel">
           <div className="sectionHead">
             <div>
-              <p className="eyebrow">Ritmo</p>
-              <h3>Termometro del sistema</h3>
+              <p className="eyebrow">Alertas</p>
+              <h3>Telegram y click humano</h3>
             </div>
-            <span className={`tag ${metrics.temperature >= 65 ? "won" : metrics.temperature <= 42 ? "lost" : "pending"}`}>
-              {temperatureLabel(metrics.temperature)}
-            </span>
+            <span className={`tag ${telegramConfigured ? "won" : "pending"}`}>{telegramConfigured ? "Telegram listo" : "Telegram apagado"}</span>
           </div>
-          <div className="heatMeter">
-            <div className="heatMeterFill" style={{ width: `${metrics.temperature}%` }} />
+          <p className="muted">Modo recomendado: el sistema genera ticket, te manda alerta al celular y vos hacés el click final desde la PC o remoto.</p>
+          <div className="buttonRow wrapGap">
+            <button className="button secondary" type="button" onClick={sendTestAlert}>Probar alerta</button>
           </div>
-          <p className="muted">Sube con ROI, hit-rate reciente y racha positiva. Baja con drawdown, rachas malas y exposicion pendiente.</p>
+          {notifyState ? <p className="inlineNote">{notifyState}</p> : null}
           <div className="metricGrid spacious">
-            <div className="metricCard"><span>ROI</span><strong>{formatPercent(metrics.roi)}</strong></div>
-            <div className="metricCard"><span>Hoy</span><strong>{formatMoney(metrics.today.profit)}</strong></div>
-            <div className="metricCard"><span>Racha win</span><strong>{metrics.winStreak}</strong></div>
-            <div className="metricCard"><span>Racha loss</span><strong>{metrics.lossStreak}</strong></div>
+            <div className="metricCard"><span>Canal</span><strong>Telegram</strong></div>
+            <div className="metricCard"><span>Cola</span><strong>{tickets.length}</strong></div>
+            <div className="metricCard"><span>Semi-auto</span><strong>Humano-in-loop</strong></div>
+            <div className="metricCard"><span>Boton final</span><strong>Manual</strong></div>
           </div>
         </article>
       </section>
@@ -130,6 +198,7 @@ export function BotView() {
           <label className="field"><span>Modo de bot</span>
             <select value={settings.autoMode} onChange={(event) => updateField("autoMode", event.target.value)}>
               <option value="paper">Paper</option>
+              <option value="semi-auto">Semi-auto</option>
               <option value="live">Live armado</option>
             </select>
           </label>
@@ -144,6 +213,40 @@ export function BotView() {
             <article className="metricCard botStat"><span>Cuota prom.</span><strong>{formatDecimal(metrics.avgOdds)}</strong></article>
             <article className="metricCard botStat"><span>Settled</span><strong>{metrics.settled}</strong></article>
             <article className="metricCard botStat"><span>Pending</span><strong>{metrics.pending}</strong></article>
+          </section>
+
+          <section className="panel">
+            <div className="sectionHead">
+              <div>
+                <p className="eyebrow">Tickets</p>
+                <h3>Cola de ejecucion</h3>
+              </div>
+            </div>
+            <div className="stack compact">
+              {tickets.length ? tickets.map((ticket) => (
+                <article className="historyCard" key={ticket.id}>
+                  <div className="rowSpread cardTopGap wrapGap">
+                    <div>
+                      <h3>{ticket.match}</h3>
+                      <p className="muted">{ticket.market}</p>
+                    </div>
+                    <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
+                  </div>
+                  <div className="metricGrid spacious">
+                    <div className="metricCard"><span>Stake</span><strong>{formatMoney(ticket.stake)}</strong></div>
+                    <div className="metricCard"><span>Cuota</span><strong>{formatDecimal(ticket.odds)}</strong></div>
+                    <div className="metricCard"><span>Modo</span><strong>{ticket.executionMode}</strong></div>
+                    <div className="metricCard"><span>Nota</span><strong>{ticket.note}</strong></div>
+                  </div>
+                  <div className="buttonRow wrapGap">
+                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "approved" })}>Aprobar</button>
+                    <button className="button secondary" type="button" onClick={() => alertTicket(ticket)} disabled={!telegramConfigured}>Alertar</button>
+                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed", executedAt: new Date().toISOString() })}>Ejecutada</button>
+                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Cancelar</button>
+                  </div>
+                </article>
+              )) : <p className="muted">No hay tickets pendientes. El bot arma esta cola a partir de apuestas guardadas como pendientes.</p>}
+            </div>
           </section>
 
           <section className="panel">
@@ -185,10 +288,10 @@ export function BotView() {
             <article>
               <p className="eyebrow">Reglas duras</p>
               <ul className="cleanList compactList">
-                <li>No subir stake por tilt: solo por temperatura y ROI.</li>
-                <li>Si temperatura baja de 35, congelar modo live.</li>
+                <li>El bot puede avisar y preparar; el click final sigue humano.</li>
+                <li>Si temperatura baja de 35, congelar modo semi-auto.</li>
                 <li>Si drawdown supera 12% del bankroll, reset a recovery.</li>
-                <li>Usar live solo con API oficial de ejecucion y limites por mercado.</li>
+                <li>Usar ejecucion automatica completa solo con API oficial.</li>
               </ul>
             </article>
           </section>
@@ -208,4 +311,18 @@ function modeLabel(mode) {
   if (mode === "recovery") return "Recovery";
   if (mode === "attack") return "Attack";
   return "Balance";
+}
+
+function ticketLabel(status) {
+  if (status === "approved") return "Aprobada";
+  if (status === "alerted") return "Alertada";
+  if (status === "executed") return "Ejecutada";
+  if (status === "cancelled") return "Cancelada";
+  return "Sugerida";
+}
+
+function tagClass(status) {
+  if (status === "executed" || status === "alerted") return "won";
+  if (status === "cancelled") return "lost";
+  return "pending";
 }
