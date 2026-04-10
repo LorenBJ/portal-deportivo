@@ -16,10 +16,21 @@ export async function POST(request) {
   }
 
   const feed = await getPortalFeed();
+  if (feed.meta?.source === "mock") {
+    return NextResponse.json(
+      { error: "demo_feed_active", detail: "El analista esta bloqueado porque la agenda actual esta en modo demo/mock, no en datos reales." },
+      { status: 409 }
+    );
+  }
+
   const targetMatch = feed.matches.find((match) => match.id === matchId) ?? null;
+  if (!targetMatch) {
+    return NextResponse.json({ error: "match_not_found" }, { status: 404 });
+  }
+
   const context = {
     meta: feed.meta,
-    selectedMatch: targetMatch ? summarizeMatchForAnalyst(targetMatch) : null,
+    selectedMatch: summarizeMatchForAnalyst(targetMatch),
     topPicks: feed.matches
       .flatMap((match) => match.odds.map((pick) => ({ match, pick })))
       .filter((entry) => entry.pick.recommended)
@@ -93,12 +104,8 @@ function extractOutputText(data) {
   const chunks = [];
   for (const item of data.output ?? []) {
     for (const content of item.content ?? []) {
-      if (content.type === "output_text" && typeof content.text === "string") {
-        chunks.push(content.text);
-      }
-      if (content.type === "text" && typeof content.text === "string") {
-        chunks.push(content.text);
-      }
+      if (content.type === "output_text" && typeof content.text === "string") chunks.push(content.text);
+      if (content.type === "text" && typeof content.text === "string") chunks.push(content.text);
     }
   }
 

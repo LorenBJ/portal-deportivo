@@ -19,10 +19,11 @@ export function AnalystView() {
   const [error, setError] = useState("");
 
   const selectedMatch = useMemo(() => matches.find((match) => match.id === matchId) ?? matches[0] ?? null, [matchId, matches]);
+  const demoMode = meta.source === "mock";
 
   async function sendMessage(customMessage) {
     const content = (customMessage ?? input).trim();
-    if (!content) return;
+    if (!content || demoMode) return;
 
     const nextMessages = [...messages, { role: "user", content }];
     setMessages(nextMessages);
@@ -33,16 +34,12 @@ export function AnalystView() {
     const response = await fetch("/api/analyst", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: content,
-        matchId: selectedMatch?.id ?? null,
-        history: nextMessages
-      })
+      body: JSON.stringify({ message: content, matchId: selectedMatch?.id ?? null, history: nextMessages })
     });
 
     const payload = await response.json();
     if (!response.ok) {
-      setError(payload.error ?? "analyst_error");
+      setError(payload.detail ?? payload.error ?? "analyst_error");
       setPending(false);
       return;
     }
@@ -56,12 +53,13 @@ export function AnalystView() {
       <aside className="panel stickyPanel analystSide">
         <h2>Analista</h2>
         <div className="feedStatusCard">
-          <strong>{meta.source === "mock" ? "Modo demo" : "Feed activo"}</strong>
+          <strong>{demoMode ? "Modo demo" : "Feed activo"}</strong>
           <span>{selectedMatch ? `${selectedMatch.home} vs ${selectedMatch.away}` : "Sin partido"}</span>
         </div>
+        {demoMode ? <p className="warningText">El analista queda bloqueado hasta que el feed deje de caer en datos mock.</p> : null}
         <label className="field">
           <span>Partido</span>
-          <select value={selectedMatch?.id ?? ""} onChange={(event) => setMatchId(event.target.value)}>
+          <select disabled={demoMode} value={selectedMatch?.id ?? ""} onChange={(event) => setMatchId(event.target.value)}>
             {matches.map((match) => (
               <option key={match.id} value={match.id}>{match.home} vs {match.away} | {match.competition}</option>
             ))}
@@ -77,7 +75,7 @@ export function AnalystView() {
         ) : null}
         <div className="starterStack">
           {STARTERS.map((starter) => (
-            <button key={starter} className="button secondary fullWidth" onClick={() => sendMessage(starter)} type="button">
+            <button key={starter} className="button secondary fullWidth" disabled={demoMode} onClick={() => sendMessage(starter)} type="button">
               {starter}
             </button>
           ))}
@@ -95,12 +93,12 @@ export function AnalystView() {
                 <span className="chatRole">{message.role === "assistant" ? "Analista" : "Vos"}</span>
                 <p>{message.content}</p>
               </article>
-            )) : <p className="muted">Elegi un partido y hace una consulta.</p>}
+            )) : <p className="muted">{demoMode ? "Activa datos reales para usar el analista." : "Elegi un partido y hace una consulta."}</p>}
             {pending ? <article className="chatBubble assistant"><span className="chatRole">Analista</span><p>Pensando...</p></article> : null}
           </div>
           <div className="chatComposer">
-            <textarea className="chatInput" value={input} onChange={(event) => setInput(event.target.value)} placeholder="Preguntame por un partido o mercado..." rows={4} />
-            <button className="button primary" disabled={pending || !selectedMatch} onClick={() => sendMessage()} type="button">Enviar</button>
+            <textarea className="chatInput" disabled={demoMode} value={input} onChange={(event) => setInput(event.target.value)} placeholder={demoMode ? "El analista esta bloqueado en modo demo." : "Preguntame por un partido o mercado..."} rows={4} />
+            <button className="button primary" disabled={demoMode || pending || !selectedMatch} onClick={() => sendMessage()} type="button">Enviar</button>
           </div>
         </section>
       </div>
