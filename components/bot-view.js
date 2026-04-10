@@ -16,7 +16,6 @@ const DEFAULT_SETTINGS = {
   minOdds: 1.1,
   maxOdds: 1.8,
   autoMode: "paper",
-  riskMode: "adaptive",
   telegramAutoAlert: true
 };
 
@@ -60,12 +59,16 @@ export function BotView() {
   }, []);
 
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
+  const activeTickets = useMemo(() => tickets.filter((ticket) => ticket.status !== "executed" && ticket.status !== "won" && ticket.status !== "lost" && ticket.status !== "cancelled"), [tickets]);
+  const executedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost"), [tickets]);
 
   useEffect(() => {
     const generated = buildBotTickets(bets, settings);
     setTickets((current) => {
       const currentMap = new Map(current.map((ticket) => [ticket.betId, ticket]));
-      const next = generated.map((ticket) => currentMap.get(ticket.betId) ? { ...ticket, ...currentMap.get(ticket.betId) } : ticket);
+      const preservedExecuted = current.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost");
+      const nextActive = generated.map((ticket) => currentMap.get(ticket.betId) ? { ...ticket, ...currentMap.get(ticket.betId) } : ticket);
+      const next = [...nextActive, ...preservedExecuted.filter((ticket) => !nextActive.some((item) => item.betId === ticket.betId))];
       window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
       return next;
     });
@@ -76,7 +79,7 @@ export function BotView() {
     if (!(settings.autoMode === "semi-auto" || settings.autoMode === "live")) return;
     if (alertingRef.current) return;
 
-    const nextTicket = tickets.find((ticket) => shouldAutoAlert(ticket));
+    const nextTicket = activeTickets.find((ticket) => shouldAutoAlert(ticket));
     if (!nextTicket) return;
 
     alertingRef.current = true;
@@ -92,22 +95,10 @@ export function BotView() {
       .finally(() => {
         alertingRef.current = false;
       });
-  }, [tickets, settings.autoMode, settings.telegramAutoAlert, telegramConfigured]);
+  }, [activeTickets, settings.autoMode, settings.telegramAutoAlert, telegramConfigured]);
 
   function updateField(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
-  }
-
-  function applyMode(mode) {
-    setSettings((current) => ({
-      ...current,
-      riskMode: mode === "balanced" ? "adaptive" : mode,
-      minOdds: mode === "recovery" ? 1.1 : mode === "attack" ? 1.4 : 1.22,
-      maxOdds: mode === "recovery" ? 1.35 : mode === "attack" ? 2.4 : 1.8,
-      maxBetsPerDay: mode === "recovery" ? 20 : mode === "attack" ? 8 : 12,
-      baseStakePct: mode === "recovery" ? 0.45 : mode === "attack" ? 1.35 : 1,
-      autoMode: mode === "balanced" ? current.autoMode : "semi-auto"
-    }));
   }
 
   function saveSettings() {
@@ -122,6 +113,21 @@ export function BotView() {
 
   function updateTicket(ticketId, patch) {
     persistTickets(tickets.map((ticket) => (ticket.id === ticketId ? { ...ticket, ...patch } : ticket)));
+  }
+
+  function settleExecutedTicket(ticketId, result) {
+    const target = tickets.find((ticket) => ticket.id === ticketId);
+    if (!target) return;
+
+    const nextTickets = tickets.map((ticket) => ticket.id === ticketId ? { ...ticket, status: result, settledAt: new Date().toISOString() } : ticket);
+    persistTickets(nextTickets);
+
+    const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result } : bet);
+    setBets(nextBets);
+
+    const raw = window.localStorage.getItem(STATE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    window.localStorage.setItem(STATE_KEY, JSON.stringify({ ...saved, bets: nextBets }));
   }
 
   async function sendTestAlert() {
@@ -162,7 +168,7 @@ export function BotView() {
     }
   }
 
-  const plan = metrics.actionPlan;
+  const stakeUnit = Number(settings.bankrollStart || 0) * ((Number(settings.baseStakePct || 1) || 1) / 100);
 
   return (
     <section className="stack">
@@ -171,13 +177,13 @@ export function BotView() {
           <p className="eyebrow">Bot Lab</p>
           <h2>Orquestacion diaria y control de temperatura</h2>
           <p className="lead compactLead">
-            Esta mesa te deja medir bankroll, calor, drawdown, volumen y regimen operativo. El objetivo es validar si el sistema merece pasar de paper a ejecucion real.
+            Esta mesa te deja medir bankroll, calor, drawdown y volumen. El bot te avisa cuando aparece un ticket operativo y vos decidís el click final y cada cierre.
           </p>
           <div className="metricGrid spacious">
-            <div className="metricCard"><span>Modo actual</span><strong>{modeLabel(metrics.mode)}</strong></div>
             <div className="metricCard"><span>Bot</span><strong>{settings.autoMode === "semi-auto" ? "Semi-auto" : settings.autoMode === "live" ? "Live armado" : "Paper"}</strong></div>
             <div className="metricCard"><span>Temperatura</span><strong>{formatDecimal(metrics.temperature, 0)}/100</strong></div>
             <div className="metricCard"><span>Bankroll</span><strong>{formatMoney(metrics.currentBankroll)}</strong></div>
+            <div className="metricCard"><span>Unidad base</span><strong>{formatMoney(stakeUnit)}</strong></div>
           </div>
         </article>
 
@@ -189,16 +195,16 @@ export function BotView() {
             </div>
             <span className={`tag ${telegramConfigured ? "won" : "pending"}`}>{telegramConfigured ? "Telegram listo" : "Telegram apagado"}</span>
           </div>
-          <p className="muted">Modo recomendado: el sistema arma el ticket, te avisa al celular automaticamente y vos hacés el click final desde la PC o remoto.</p>
+          <p className="muted">El sistema detecta tickets, te envía Telegram automático y vos hacés el click final en la casa. Después cerrás el resultado desde esta misma página.</p>
           <div className="buttonRow wrapGap">
             <button className="button secondary" type="button" onClick={sendTestAlert}>Probar alerta</button>
           </div>
           {notifyState ? <p className="inlineNote">{notifyState}</p> : null}
           <div className="metricGrid spacious">
             <div className="metricCard"><span>Canal</span><strong>Telegram</strong></div>
-            <div className="metricCard"><span>Cola</span><strong>{tickets.length}</strong></div>
+            <div className="metricCard"><span>Activos</span><strong>{activeTickets.length}</strong></div>
+            <div className="metricCard"><span>Ejecutados</span><strong>{executedTickets.length}</strong></div>
             <div className="metricCard"><span>Auto-alerta</span><strong>{settings.telegramAutoAlert ? "Activa" : "Off"}</strong></div>
-            <div className="metricCard"><span>Boton final</span><strong>Manual</strong></div>
           </div>
         </article>
       </section>
@@ -213,19 +219,13 @@ export function BotView() {
             {savedAt ? <span className="inlineNote">Guardado {new Date(savedAt).toLocaleTimeString("es-AR")}</span> : null}
           </div>
 
-          <div className="buttonRow wrapGap">
-            <button className="button secondary" type="button" onClick={() => applyMode("recovery")}>Recovery</button>
-            <button className="button secondary" type="button" onClick={() => applyMode("balanced")}>Balance</button>
-            <button className="button secondary" type="button" onClick={() => applyMode("attack")}>Attack</button>
-          </div>
-
-          <label className="field"><span>Bankroll inicial</span><input type="number" value={settings.bankrollStart} onChange={(event) => updateField("bankrollStart", Number(event.target.value))} /></label>
-          <label className="field"><span>Presupuesto diario</span><input type="number" value={settings.dailyBudget} onChange={(event) => updateField("dailyBudget", Number(event.target.value))} /></label>
-          <label className="field"><span>Stake base % bankroll</span><input type="number" step="0.1" value={settings.baseStakePct} onChange={(event) => updateField("baseStakePct", Number(event.target.value))} /></label>
-          <label className="field"><span>Max apuestas por dia</span><input type="number" value={settings.maxBetsPerDay} onChange={(event) => updateField("maxBetsPerDay", Number(event.target.value))} /></label>
-          <label className="field"><span>Cuota minima</span><input type="number" step="0.01" value={settings.minOdds} onChange={(event) => updateField("minOdds", Number(event.target.value))} /></label>
-          <label className="field"><span>Cuota maxima</span><input type="number" step="0.01" value={settings.maxOdds} onChange={(event) => updateField("maxOdds", Number(event.target.value))} /></label>
-          <label className="field"><span>Modo de bot</span>
+          <label className="field"><span>Bankroll inicial</span><small className="fieldHelp">Capital base desde el que medís ganancias, pérdidas y drawdown.</small><input type="number" value={settings.bankrollStart} onChange={(event) => updateField("bankrollStart", Number(event.target.value))} /></label>
+          <label className="field"><span>Presupuesto diario</span><small className="fieldHelp">Tope total que querés arriesgar por día.</small><input type="number" value={settings.dailyBudget} onChange={(event) => updateField("dailyBudget", Number(event.target.value))} /></label>
+          <label className="field"><span>Stake base % bankroll</span><small className="fieldHelp">Porcentaje del bankroll que define tu unidad base. Si bankroll es 100.000 y ponés 1, la unidad base es 1.000.</small><input type="number" step="0.1" value={settings.baseStakePct} onChange={(event) => updateField("baseStakePct", Number(event.target.value))} /></label>
+          <label className="field"><span>Max apuestas por dia</span><small className="fieldHelp">Cantidad máxima de tickets activos que el bot puede dejarte en cola por día.</small><input type="number" value={settings.maxBetsPerDay} onChange={(event) => updateField("maxBetsPerDay", Number(event.target.value))} /></label>
+          <label className="field"><span>Cuota minima</span><small className="fieldHelp">Límite inferior de cuota que aceptás operar.</small><input type="number" step="0.01" value={settings.minOdds} onChange={(event) => updateField("minOdds", Number(event.target.value))} /></label>
+          <label className="field"><span>Cuota maxima</span><small className="fieldHelp">Límite superior de cuota que aceptás operar.</small><input type="number" step="0.01" value={settings.maxOdds} onChange={(event) => updateField("maxOdds", Number(event.target.value))} /></label>
+          <label className="field"><span>Modo de bot</span><small className="fieldHelp">Paper no alerta ni simula ejecución real. Semi-auto manda alertas y deja el click final en vos. Live armado es la antesala de una futura automatización más fuerte.</small>
             <select value={settings.autoMode} onChange={(event) => updateField("autoMode", event.target.value)}>
               <option value="paper">Paper</option>
               <option value="semi-auto">Semi-auto</option>
@@ -249,12 +249,12 @@ export function BotView() {
           <section className="panel">
             <div className="sectionHead">
               <div>
-                <p className="eyebrow">Tickets</p>
+                <p className="eyebrow">Tickets activos</p>
                 <h3>Cola de ejecucion</h3>
               </div>
             </div>
             <div className="stack compact">
-              {tickets.length ? tickets.map((ticket) => (
+              {activeTickets.length ? activeTickets.map((ticket) => (
                 <article className="historyCard" key={ticket.id}>
                   <div className="rowSpread cardTopGap wrapGap">
                     <div>
@@ -272,11 +272,44 @@ export function BotView() {
                   <div className="buttonRow wrapGap">
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "approved" })}>Aprobar</button>
                     <button className="button secondary" type="button" onClick={() => alertTicket(ticket)} disabled={!telegramConfigured}>Reenviar alerta</button>
-                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed", executedAt: new Date().toISOString() })}>Ejecutada</button>
+                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed", executedAt: new Date().toISOString() })}>Pasar a ejecutadas</button>
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Cancelar</button>
                   </div>
                 </article>
-              )) : <p className="muted">No hay tickets pendientes. El bot arma esta cola a partir de apuestas guardadas como pendientes.</p>}
+              )) : <p className="muted">No hay tickets activos. El bot arma esta cola a partir de apuestas guardadas como pendientes.</p>}
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="sectionHead">
+              <div>
+                <p className="eyebrow">Tickets ejecutados</p>
+                <h3>Cierre manual</h3>
+              </div>
+            </div>
+            <div className="stack compact">
+              {executedTickets.length ? executedTickets.map((ticket) => (
+                <article className="historyCard" key={ticket.id}>
+                  <div className="rowSpread cardTopGap wrapGap">
+                    <div>
+                      <h3>{ticket.match}</h3>
+                      <p className="muted">{ticket.market}</p>
+                    </div>
+                    <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
+                  </div>
+                  <div className="metricGrid spacious">
+                    <div className="metricCard"><span>Stake</span><strong>{formatMoney(ticket.stake)}</strong></div>
+                    <div className="metricCard"><span>Cuota</span><strong>{formatDecimal(ticket.odds)}</strong></div>
+                    <div className="metricCard"><span>Alerta</span><strong>{ticket.alertedAt ? "Enviada" : "No"}</strong></div>
+                    <div className="metricCard"><span>Click real</span><strong>{ticket.executedAt ? "Hecho" : "Pendiente"}</strong></div>
+                  </div>
+                  <div className="buttonRow wrapGap">
+                    <button className="button secondary" type="button" onClick={() => settleExecutedTicket(ticket.id, "won")}>Ganada</button>
+                    <button className="button secondary" type="button" onClick={() => settleExecutedTicket(ticket.id, "lost")}>Perdida</button>
+                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed" })}>Dejar ejecutada</button>
+                  </div>
+                </article>
+              )) : <p className="muted">Cuando hagas el click real, pasá el ticket a ejecutadas y después cerralo como ganada o perdida.</p>}
             </div>
           </section>
 
@@ -302,30 +335,6 @@ export function BotView() {
               })}
             </div>
           </section>
-
-          <section className="panel botDecisionGrid">
-            <article>
-              <p className="eyebrow">Plan sugerido</p>
-              <h3>{plan.label}</h3>
-              <p className="muted">{plan.note}</p>
-              <ul className="cleanList compactList">
-                <li>Stake sugerido: {formatMoney(plan.stakeBand[0])} a {formatMoney(plan.stakeBand[1])}</li>
-                <li>Franja de cuotas: {formatDecimal(plan.oddsBand[0])} a {formatDecimal(plan.oddsBand[1])}</li>
-                <li>Meta diaria de recuperacion / captura: {formatMoney(plan.dailyTarget)}</li>
-                <li>Volumen maximo: {settings.maxBetsPerDay} apuestas</li>
-              </ul>
-            </article>
-
-            <article>
-              <p className="eyebrow">Reglas duras</p>
-              <ul className="cleanList compactList">
-                <li>La alerta sale sola cuando entra un ticket operable.</li>
-                <li>Si temperatura baja de 35, congelar modo semi-auto.</li>
-                <li>Si drawdown supera 12% del bankroll, reset a recovery.</li>
-                <li>El click final sigue manual hasta tener API oficial.</li>
-              </ul>
-            </article>
-          </section>
         </div>
       </section>
     </section>
@@ -333,31 +342,21 @@ export function BotView() {
 }
 
 function shouldAutoAlert(ticket) {
-  return (ticket.status === "suggested" || ticket.status === "approved") && !ticket.alertedAt && ticket.status !== "cancelled" && ticket.status !== "executed";
-}
-
-function temperatureLabel(value) {
-  if (value >= 70) return "Caliente";
-  if (value <= 40) return "Frio";
-  return "Neutro";
-}
-
-function modeLabel(mode) {
-  if (mode === "recovery") return "Recovery";
-  if (mode === "attack") return "Attack";
-  return "Balance";
+  return (ticket.status === "suggested" || ticket.status === "approved") && !ticket.alertedAt && ticket.status !== "cancelled";
 }
 
 function ticketLabel(status) {
   if (status === "approved") return "Aprobada";
   if (status === "alerted") return "Alertada";
   if (status === "executed") return "Ejecutada";
+  if (status === "won") return "Ganada";
+  if (status === "lost") return "Perdida";
   if (status === "cancelled") return "Cancelada";
   return "Sugerida";
 }
 
 function tagClass(status) {
-  if (status === "executed" || status === "alerted") return "won";
-  if (status === "cancelled") return "lost";
+  if (status === "executed" || status === "alerted" || status === "won") return "won";
+  if (status === "cancelled" || status === "lost") return "lost";
   return "pending";
 }
