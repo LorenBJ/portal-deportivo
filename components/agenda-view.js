@@ -8,17 +8,11 @@ export function AgendaView() {
   const [competition, setCompetition] = useState("all");
   const [sport, setSport] = useState("all");
   const [status, setStatus] = useState("all");
-  const [valueOnly, setValueOnly] = useState(false);
+  const [valueOnly, setValueOnly] = useState(true);
   const { matches, meta, isLoading, error } = usePortalFeed();
 
-  const competitions = useMemo(
-    () => ["all", ...new Set(matches.map((match) => match.competition))],
-    [matches]
-  );
-  const sports = useMemo(
-    () => ["all", ...new Set(matches.map((match) => match.sport))],
-    [matches]
-  );
+  const competitions = useMemo(() => ["all", ...new Set(matches.map((match) => match.competition))], [matches]);
+  const sports = useMemo(() => ["all", ...new Set(matches.map((match) => match.sport))], [matches]);
 
   const filteredMatches = useMemo(() => {
     return matches
@@ -27,7 +21,7 @@ export function AgendaView() {
       .filter((match) => status === "all" || match.status === status)
       .map((match) => ({
         ...match,
-        odds: match.odds.filter((pick) => !valueOnly || pick.edge > 0)
+        odds: match.odds.filter((pick) => (!valueOnly || pick.recommended) && pick.edge > -0.02)
       }))
       .filter((match) => match.odds.length > 0);
   }, [competition, matches, sport, status, valueOnly]);
@@ -35,7 +29,8 @@ export function AgendaView() {
   const featuredPicks = useMemo(() => {
     return filteredMatches
       .flatMap((match) => match.odds)
-      .sort((a, b) => b.edge - a.edge)
+      .filter((pick) => pick.recommended)
+      .sort((a, b) => b.recommendationScore - a.recommendationScore)
       .slice(0, 6);
   }, [filteredMatches]);
 
@@ -45,30 +40,18 @@ export function AgendaView() {
         <h2>Filtros</h2>
         <div className="feedStatusCard">
           <strong>{meta.source === "mock" ? "Modo demo" : "Datos reales"}</strong>
-          <span>
-            {meta.source === "mock"
-              ? "Todavia no hay clave configurada o el proveedor no respondio."
-              : `Actualizado ${formatTimestamp(meta.generatedAt)}`}
-          </span>
+          <span>{meta.source === "mock" ? "Sin clave o fallback activo." : `Actualizado ${formatTimestamp(meta.generatedAt)}`}</span>
         </div>
         <label className="field">
           <span>Competicion</span>
           <select value={competition} onChange={(event) => setCompetition(event.target.value)}>
-            {competitions.map((item) => (
-              <option key={item} value={item}>
-                {item === "all" ? "Todas" : item}
-              </option>
-            ))}
+            {competitions.map((item) => <option key={item} value={item}>{item === "all" ? "Todas" : item}</option>)}
           </select>
         </label>
         <label className="field">
           <span>Deporte</span>
           <select value={sport} onChange={(event) => setSport(event.target.value)}>
-            {sports.map((item) => (
-              <option key={item} value={item}>
-                {item === "all" ? "Todos" : item}
-              </option>
-            ))}
+            {sports.map((item) => <option key={item} value={item}>{item === "all" ? "Todos" : item}</option>)}
           </select>
         </label>
         <label className="field">
@@ -80,24 +63,20 @@ export function AgendaView() {
           </select>
         </label>
         <label className="checkboxRow">
-          <input
-            checked={valueOnly}
-            onChange={(event) => setValueOnly(event.target.checked)}
-            type="checkbox"
-          />
-          <span>Solo picks con valor positivo</span>
+          <input checked={valueOnly} onChange={(event) => setValueOnly(event.target.checked)} type="checkbox" />
+          <span>Solo recomendaciones aptas</span>
         </label>
       </aside>
 
       <div className="stack">
-        {error ? <p className="panel warningText">No pude refrescar el feed: {error}</p> : null}
-        {isLoading ? <p className="panel muted">Cargando agenda y cuotas...</p> : null}
+        {error ? <p className="panel warningText">Feed: {error}</p> : null}
+        {isLoading ? <p className="panel muted">Cargando...</p> : null}
 
         <section className="panel">
           <div className="sectionHead">
             <div>
               <p className="eyebrow">Radar</p>
-              <h2>Selecciones destacadas</h2>
+              <h2>Mejores oportunidades</h2>
             </div>
           </div>
           <div className="cardGrid">
@@ -105,25 +84,15 @@ export function AgendaView() {
               <article className="pickCard" key={pick.id}>
                 <div className="rowSpread">
                   <span className="tag">{pick.competition}</span>
-                  <span className={`edge ${pick.edge > 0 ? "positive" : ""}`}>
-                    {formatSignedPercent(pick.edge)}
-                  </span>
+                  <span className={`edge ${pick.recommended ? "positive" : ""}`}>{formatSignedPercent(pick.edge)}</span>
                 </div>
                 <h3>{pick.market}</h3>
                 <p className="muted">{pick.home} vs {pick.away}</p>
                 <div className="metricGrid">
-                  <div>
-                    <span>Cuota</span>
-                    <strong>{pick.price.toFixed(2)}</strong>
-                  </div>
-                  <div>
-                    <span>Consenso</span>
-                    <strong>{formatPercent(pick.adjustedProbability)}</strong>
-                  </div>
-                  <div>
-                    <span>Estado</span>
-                    <strong>{formatStatus(pick.status)}</strong>
-                  </div>
+                  <div><span>Cuota</span><strong>{pick.price.toFixed(2)}</strong></div>
+                  <div><span>Prob.</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
+                  <div><span>Conf.</span><strong>{formatPercent(pick.confidence)}</strong></div>
+                  <div><span>Riesgo</span><strong>{pick.riskTier}</strong></div>
                 </div>
               </article>
             ))}
@@ -140,9 +109,9 @@ export function AgendaView() {
           <div className="stack compact">
             {filteredMatches.map((match) => (
               <article className="matchCard" key={match.id}>
-                <div className="rowSpread">
+                <div className="rowSpread cardTopGap">
                   <div>
-                    <div className="rowCompact">
+                    <div className="rowCompact wrapGap">
                       <span className="tag">{match.competition}</span>
                       <span className="tag subtle">{formatStatus(match.status)}</span>
                     </div>
@@ -152,14 +121,16 @@ export function AgendaView() {
                   <strong className="score">{match.score}</strong>
                 </div>
                 <div className="oddsGrid">
-                  {match.odds.map((pick) => (
+                  {match.odds
+                    .sort((a, b) => b.recommendationScore - a.recommendationScore)
+                    .slice(0, 6)
+                    .map((pick) => (
                     <div className="oddBox" key={pick.id}>
                       <strong>{pick.market}</strong>
                       <span>Cuota {pick.price.toFixed(2)}</span>
-                      <span>Consenso {formatPercent(pick.adjustedProbability)}</span>
-                      <span className={pick.edge > 0 ? "positiveText" : ""}>
-                        Edge {formatSignedPercent(pick.edge)}
-                      </span>
+                      <span>Prob. {formatPercent(pick.adjustedProbability)}</span>
+                      <span>Conf. {formatPercent(pick.confidence)}</span>
+                      <span className={pick.recommended ? "positiveText" : "muted"}>{pick.recommended ? "Apta" : "Cauta"} | Edge {formatSignedPercent(pick.edge)}</span>
                     </div>
                   ))}
                 </div>

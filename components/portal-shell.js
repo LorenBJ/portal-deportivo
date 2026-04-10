@@ -4,7 +4,8 @@ const links = [
   { href: "/", label: "Inicio" },
   { href: "/agenda", label: "Agenda" },
   { href: "/combinador", label: "Combinador" },
-  { href: "/historial", label: "Historial" }
+  { href: "/historial", label: "Historial" },
+  { href: "/analista", label: "Analista" }
 ];
 
 export function PortalShell({ pathname, children }) {

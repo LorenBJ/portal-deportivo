@@ -1,44 +1,35 @@
 # Portal Deportivo Personal
 
-Portal multipagina en Next.js, desplegado en Vercel y listo para conectarse a cuotas reales.
+Portal multipagina en Next.js con feed de cuotas, motor propio de picks y analista conversacional.
 
-## Stack actual
+## Stack
 
 - Next.js 16
 - React 19
-- App Router
-- Historial persistido en `localStorage`
-- Feed server-side en `/api/feed`
+- Feed server-side `/api/feed`
+- Chat analyst `/api/analyst`
+- Historial en `localStorage`
 
-## Datos reales
-
-La primera integracion real usa `The Odds API` para agenda, estados y cuotas de competencias configuradas.
-
-Variables de entorno:
+## Variables
 
 ```bash
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.4-mini
+OPENAI_REASONING_EFFORT=low
 ODDS_API_KEY=
 ODDS_API_REGIONS=eu
 ODDS_API_MARKETS=h2h,spreads,totals
-ODDS_API_SPORT_KEYS=soccer_argentina_primera_division,soccer_conmebol_copa_libertadores,soccer_uefa_champs_league,soccer_epl,basketball_nba
+ODDS_API_SPORT_KEYS=soccer_argentina_primera_division,soccer_epl,soccer_spain_la_liga,soccer_germany_bundesliga,soccer_italy_serie_a,soccer_france_ligue_one,soccer_uefa_champs_league,soccer_conmebol_copa_libertadores,soccer_conmebol_copa_sudamericana,basketball_nba
 ```
 
-Si falta la clave, la app vuelve automaticamente al modo demo con datos mock.
+## Motor v2
 
-## Desarrollo local
+- parte del consenso de mercado
+- agrega heuristicas por rating y localia
+- penaliza outsiders extremos
+- rankea por edge, confianza y estabilidad
+- filtra picks aptos para agenda y combinador
 
-```bash
-npm install
-npm run dev
-```
+## Chat
 
-## Produccion
-
-Cada push a `main` genera deploy automatico en Vercel.
-
-## Siguiente paso recomendado
-
-1. Guardar historial en base de datos.
-2. Agregar autenticacion privada.
-3. Enriquecer el modelo propio para picks destacados.
-4. Sumar un segundo proveedor de fixtures si queres detalle adicional por liga.
+El analista usa el feed actual y el partido seleccionado. Si falta `OPENAI_API_KEY`, el chat no responde.

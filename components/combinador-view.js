@@ -15,8 +15,8 @@ export function CombinadorView() {
 
   const allPicks = useMemo(() => {
     return getAllPicks(matches)
-      .filter((pick) => pick.edge > 0)
-      .sort((a, b) => (b.adjustedProbability + b.edge) - (a.adjustedProbability + a.edge));
+      .filter((pick) => pick.recommended)
+      .sort((a, b) => b.recommendationScore - a.recommendationScore);
   }, [matches]);
 
   useEffect(() => {
@@ -37,21 +37,10 @@ export function CombinadorView() {
     if (!ready) return;
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const saved = raw ? JSON.parse(raw) : {};
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ...saved,
-        selectedPicks,
-        stake,
-        bets: saved.bets ?? []
-      })
-    );
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...saved, selectedPicks, stake, bets: saved.bets ?? [] }));
   }, [ready, selectedPicks, stake]);
 
-  const summary = useMemo(
-    () => calculateCombo(selectedPicks, Number(stake) || 0),
-    [selectedPicks, stake]
-  );
+  const summary = useMemo(() => calculateCombo(selectedPicks, Number(stake) || 0), [selectedPicks, stake]);
 
   function togglePick(pick) {
     setSelectedPicks((current) => {
@@ -64,7 +53,6 @@ export function CombinadorView() {
 
   function saveBet() {
     if (!selectedPicks.length) return;
-
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const saved = raw ? JSON.parse(raw) : {};
     const bets = saved.bets ?? [];
@@ -80,16 +68,7 @@ export function CombinadorView() {
       status: "pending"
     });
 
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ...saved,
-        selectedPicks: [],
-        stake: Number(stake) || 0,
-        bets
-      })
-    );
-
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...saved, selectedPicks: [], stake: Number(stake) || 0, bets }));
     setSelectedPicks([]);
   }
 
@@ -103,40 +82,23 @@ export function CombinadorView() {
         </div>
         <label className="field">
           <span>Monto a apostar</span>
-          <input
-            min="0"
-            onChange={(event) => setStake(Number(event.target.value))}
-            step="100"
-            type="number"
-            value={stake}
-          />
+          <input min="0" onChange={(event) => setStake(Number(event.target.value))} step="100" type="number" value={stake} />
         </label>
         <div className={`selectedBox${selectedPicks.length ? "" : " empty"}`}>
-          {selectedPicks.length ? (
-            selectedPicks.map((pick) => (
-              <div className="selectedItem" key={pick.id}>
-                <strong>{pick.market}</strong>
-                <span>{pick.home} vs {pick.away}</span>
-                <span>Cuota {pick.price.toFixed(2)}</span>
-              </div>
-            ))
-          ) : (
-            "Todavia no elegiste picks."
-          )}
+          {selectedPicks.length ? selectedPicks.map((pick) => (
+            <div className="selectedItem" key={pick.id}>
+              <strong>{pick.market}</strong>
+              <span>{pick.home} vs {pick.away}</span>
+              <span>Cuota {pick.price.toFixed(2)} | Conf. {formatPercent(pick.confidence)}</span>
+            </div>
+          )) : "Todavia no elegiste picks."}
         </div>
-        <button className="button secondary fullWidth" onClick={() => setSelectedPicks([])} type="button">
-          Limpiar seleccion
-        </button>
+        <button className="button secondary fullWidth" onClick={() => setSelectedPicks([])} type="button">Limpiar seleccion</button>
       </aside>
 
       <div className="stack">
         <section className="panel">
-          <div className="sectionHead">
-            <div>
-              <p className="eyebrow">Resumen</p>
-              <h2>Combinacion proyectada</h2>
-            </div>
-          </div>
+          <div className="sectionHead"><div><p className="eyebrow">Resumen</p><h2>Combinacion proyectada</h2></div></div>
           {selectedPicks.length ? (
             <div className="summaryStack">
               <div className="metricGrid spacious">
@@ -148,19 +110,12 @@ export function CombinadorView() {
               </div>
               <button className="button primary" onClick={saveBet} type="button">Guardar apuesta en historial</button>
             </div>
-          ) : (
-            <p className="muted">Elegi entre 1 y 3 picks para calcular cuota total, probabilidad conjunta y retorno potencial.</p>
-          )}
+          ) : <p className="muted">Elegi picks recomendados para calcular cuota, probabilidad y retorno.</p>}
         </section>
 
         <section className="panel">
-          <div className="sectionHead">
-            <div>
-              <p className="eyebrow">Mercados</p>
-              <h2>Picks sugeridos para combinar</h2>
-            </div>
-          </div>
-          {isLoading ? <p className="muted">Cargando mercados disponibles...</p> : null}
+          <div className="sectionHead"><div><p className="eyebrow">Mercados</p><h2>Picks sugeridos para combinar</h2></div></div>
+          {isLoading ? <p className="muted">Cargando mercados...</p> : null}
           <div className="cardGrid">
             {allPicks.slice(0, 12).map((pick) => {
               const selected = selectedPicks.some((entry) => entry.id === pick.id);
@@ -168,19 +123,19 @@ export function CombinadorView() {
                 <article className={`pickCard${selected ? " selected" : ""}`} key={pick.id}>
                   <div className="rowSpread">
                     <span className="tag">{pick.competition}</span>
-                    <span className={`edge ${pick.edge > 0 ? "positive" : ""}`}>{formatSignedPercent(pick.edge)}</span>
+                    <span className="edge positive">{formatSignedPercent(pick.edge)}</span>
                   </div>
                   <h3>{pick.market}</h3>
                   <p className="muted">{pick.home} vs {pick.away}</p>
                   <div className="metricGrid">
                     <div><span>Cuota</span><strong>{pick.price.toFixed(2)}</strong></div>
-                    <div><span>Consenso</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
+                    <div><span>Prob.</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
+                    <div><span>Conf.</span><strong>{formatPercent(pick.confidence)}</strong></div>
                     <div><span>Inicio</span><strong>{formatKickoff(pick.kickoff)}</strong></div>
                     <div><span>Estado</span><strong>{formatStatus(pick.status)}</strong></div>
+                    <div><span>Riesgo</span><strong>{pick.riskTier}</strong></div>
                   </div>
-                  <button className="button secondary fullWidth" onClick={() => togglePick(pick)} type="button">
-                    {selected ? "Quitar" : "Agregar"}
-                  </button>
+                  <button className="button secondary fullWidth" onClick={() => togglePick(pick)} type="button">{selected ? "Quitar" : "Agregar"}</button>
                 </article>
               );
             })}
