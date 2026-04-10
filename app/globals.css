@@ -1,0 +1,448 @@
+:root {
+  --bg: #f7f1e7;
+  --bg-soft: #fff9f0;
+  --panel: rgba(255, 251, 244, 0.9);
+  --panel-strong: #fffdfa;
+  --border: rgba(90, 74, 53, 0.12);
+  --text: #1f1b17;
+  --muted: #6e6459;
+  --accent: #136f63;
+  --accent-soft: rgba(19, 111, 99, 0.1);
+  --gold: #b7872f;
+  --gold-soft: rgba(183, 135, 47, 0.12);
+  --danger: #b45545;
+  --danger-soft: rgba(180, 85, 69, 0.12);
+  --shadow: 0 20px 50px rgba(87, 65, 38, 0.09);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(19, 111, 99, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(183, 135, 47, 0.12), transparent 24%),
+    linear-gradient(180deg, #fbf6ee 0%, var(--bg) 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(90, 74, 53, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 74, 53, 0.03) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.shell {
+  width: min(1240px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 24px 0 42px;
+}
+
+.topbar,
+.nav,
+.buttonRow,
+.rowSpread,
+.rowCompact,
+.sectionHead,
+.pageHeader {
+  display: flex;
+  align-items: center;
+}
+
+.topbar,
+.pageHeader,
+.sectionHead,
+.rowSpread {
+  justify-content: space-between;
+}
+
+.topbar {
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand strong,
+h1,
+h2,
+h3 {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+.brand small {
+  display: block;
+  color: var(--muted);
+}
+
+.brandMark {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: linear-gradient(135deg, var(--accent), #1f9384);
+  color: white;
+  font-weight: 800;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.nav {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.navLink {
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: var(--muted);
+}
+
+.navLink.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.page,
+.stack {
+  display: grid;
+  gap: 20px;
+}
+
+.heroLayout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 20px;
+}
+
+.heroCopy {
+  padding: 8px 0;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.74rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  line-height: 0.95;
+}
+
+h2 {
+  margin: 0;
+  font-size: clamp(1.7rem, 2.7vw, 2.3rem);
+}
+
+h3 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.lead,
+.muted,
+.field span,
+.metricGrid span,
+.historyPick span,
+.selectedItem span {
+  color: var(--muted);
+}
+
+.lead {
+  max-width: 62ch;
+  line-height: 1.65;
+  margin-top: 16px;
+}
+
+.buttonRow {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel,
+.metricCard,
+.oddBox,
+.pickCard,
+.matchCard,
+.historyCard,
+.selectedBox {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  padding: 24px;
+  border-radius: 28px;
+}
+
+.softPanel {
+  background: rgba(255, 248, 236, 0.94);
+}
+
+.button {
+  border: 0;
+  border-radius: 16px;
+  padding: 12px 18px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.button.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.button.secondary {
+  background: white;
+  color: var(--text);
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.stickyPanel {
+  position: sticky;
+  top: 18px;
+  height: fit-content;
+}
+
+.field {
+  display: block;
+  margin-top: 14px;
+}
+
+select,
+input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+  font: inherit;
+}
+
+.checkboxRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.checkboxRow input {
+  width: auto;
+  margin: 0;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.cardGridWide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.featurePanel p {
+  line-height: 1.6;
+}
+
+.textLink {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tag,
+.edge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.tag {
+  background: var(--gold-soft);
+  color: #8c641b;
+}
+
+.tag.subtle,
+.tag.pending {
+  background: rgba(90, 74, 53, 0.08);
+  color: var(--muted);
+}
+
+.tag.won,
+.edge.positive {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tag.lost {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.pickCard,
+.matchCard,
+.historyCard {
+  padding: 18px;
+  border-radius: 22px;
+}
+
+.pickCard.selected {
+  outline: 2px solid rgba(19, 111, 99, 0.22);
+}
+
+.metricGrid,
+.oddsGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.metricGrid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  margin-top: 16px;
+}
+
+.metricGrid.spacious {
+  margin-top: 0;
+}
+
+.metricCard,
+.oddBox {
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--panel-strong);
+}
+
+.metricCard strong,
+.oddBox strong {
+  display: block;
+  margin-top: 6px;
+}
+
+.oddsGrid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: 18px;
+}
+
+.score {
+  font-size: 1.5rem;
+}
+
+.positiveText {
+  color: var(--accent);
+}
+
+.inlineNote {
+  color: var(--muted);
+}
+
+.selectedBox {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: 20px;
+}
+
+.selectedBox.empty {
+  color: var(--muted);
+}
+
+.selectedItem + .selectedItem,
+.historyPick + .historyPick {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.summaryStack {
+  display: grid;
+  gap: 16px;
+}
+
+.cleanList {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+
+.mini {
+  gap: 10px;
+}
+
+.compact {
+  gap: 14px;
+}
+
+@media (max-width: 980px) {
+  .heroLayout,
+  .contentGrid,
+  .cardGridWide {
+    grid-template-columns: 1fr;
+  }
+
+  .stickyPanel {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .shell {
+    width: min(100% - 18px, 1240px);
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .panel {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  h1 {
+    font-size: 2.4rem;
+  }
+}
