@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDecimal, formatMoney, formatPercent } from "@/lib/format";
 import { buildBotTickets, getBotMetrics } from "@/lib/bot-lab";
 
@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = {
   minOdds: 1.1,
   maxOdds: 1.8,
   autoMode: "paper",
-  riskMode: "adaptive"
+  riskMode: "adaptive",
+  telegramAutoAlert: true
 };
 
 export function BotView() {
@@ -26,6 +27,7 @@ export function BotView() {
   const [tickets, setTickets] = useState([]);
   const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [notifyState, setNotifyState] = useState(null);
+  const alertingRef = useRef(false);
 
   useEffect(() => {
     const rawState = window.localStorage.getItem(STATE_KEY);
@@ -68,6 +70,29 @@ export function BotView() {
       return next;
     });
   }, [bets, settings]);
+
+  useEffect(() => {
+    if (!telegramConfigured || !settings.telegramAutoAlert) return;
+    if (!(settings.autoMode === "semi-auto" || settings.autoMode === "live")) return;
+    if (alertingRef.current) return;
+
+    const nextTicket = tickets.find((ticket) => shouldAutoAlert(ticket));
+    if (!nextTicket) return;
+
+    alertingRef.current = true;
+    sendTicketAlert(nextTicket)
+      .then(() => {
+        updateTicket(nextTicket.id, { status: "alerted", alertedAt: new Date().toISOString() });
+        setNotifyState(`Alerta automatica enviada para ${nextTicket.match}.`);
+      })
+      .catch((error) => {
+        updateTicket(nextTicket.id, { alertError: error.message || "auto_alert_failed" });
+        setNotifyState(`Error: ${error.message}`);
+      })
+      .finally(() => {
+        alertingRef.current = false;
+      });
+  }, [tickets, settings.autoMode, settings.telegramAutoAlert, telegramConfigured]);
 
   function updateField(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -115,16 +140,21 @@ export function BotView() {
     }
   }
 
+  async function sendTicketAlert(ticket) {
+    const response = await fetch("/api/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "ticket", ticket })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "ticket_notify_failed");
+    return data;
+  }
+
   async function alertTicket(ticket) {
     setNotifyState(`Enviando ticket ${ticket.match}...`);
     try {
-      const response = await fetch("/api/notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "ticket", ticket })
-      });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || "ticket_notify_failed");
+      await sendTicketAlert(ticket);
       updateTicket(ticket.id, { status: "alerted", alertedAt: new Date().toISOString() });
       setNotifyState("Ticket enviado a Telegram.");
     } catch (error) {
@@ -159,7 +189,7 @@ export function BotView() {
             </div>
             <span className={`tag ${telegramConfigured ? "won" : "pending"}`}>{telegramConfigured ? "Telegram listo" : "Telegram apagado"}</span>
           </div>
-          <p className="muted">Modo recomendado: el sistema genera ticket, te manda alerta al celular y vos hacés el click final desde la PC o remoto.</p>
+          <p className="muted">Modo recomendado: el sistema arma el ticket, te avisa al celular automaticamente y vos hacés el click final desde la PC o remoto.</p>
           <div className="buttonRow wrapGap">
             <button className="button secondary" type="button" onClick={sendTestAlert}>Probar alerta</button>
           </div>
@@ -167,7 +197,7 @@ export function BotView() {
           <div className="metricGrid spacious">
             <div className="metricCard"><span>Canal</span><strong>Telegram</strong></div>
             <div className="metricCard"><span>Cola</span><strong>{tickets.length}</strong></div>
-            <div className="metricCard"><span>Semi-auto</span><strong>Humano-in-loop</strong></div>
+            <div className="metricCard"><span>Auto-alerta</span><strong>{settings.telegramAutoAlert ? "Activa" : "Off"}</strong></div>
             <div className="metricCard"><span>Boton final</span><strong>Manual</strong></div>
           </div>
         </article>
@@ -202,6 +232,7 @@ export function BotView() {
               <option value="live">Live armado</option>
             </select>
           </label>
+          <label className="checkboxRow"><input type="checkbox" checked={settings.telegramAutoAlert} onChange={(event) => updateField("telegramAutoAlert", event.target.checked)} /><span>Enviar alertas automaticas por Telegram</span></label>
           <button className="button primary fullWidth" type="button" onClick={saveSettings}>Guardar setup</button>
         </article>
 
@@ -240,7 +271,7 @@ export function BotView() {
                   </div>
                   <div className="buttonRow wrapGap">
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "approved" })}>Aprobar</button>
-                    <button className="button secondary" type="button" onClick={() => alertTicket(ticket)} disabled={!telegramConfigured}>Alertar</button>
+                    <button className="button secondary" type="button" onClick={() => alertTicket(ticket)} disabled={!telegramConfigured}>Reenviar alerta</button>
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed", executedAt: new Date().toISOString() })}>Ejecutada</button>
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Cancelar</button>
                   </div>
@@ -288,10 +319,10 @@ export function BotView() {
             <article>
               <p className="eyebrow">Reglas duras</p>
               <ul className="cleanList compactList">
-                <li>El bot puede avisar y preparar; el click final sigue humano.</li>
+                <li>La alerta sale sola cuando entra un ticket operable.</li>
                 <li>Si temperatura baja de 35, congelar modo semi-auto.</li>
                 <li>Si drawdown supera 12% del bankroll, reset a recovery.</li>
-                <li>Usar ejecucion automatica completa solo con API oficial.</li>
+                <li>El click final sigue manual hasta tener API oficial.</li>
               </ul>
             </article>
           </section>
@@ -299,6 +330,10 @@ export function BotView() {
       </section>
     </section>
   );
+}
+
+function shouldAutoAlert(ticket) {
+  return (ticket.status === "suggested" || ticket.status === "approved") && !ticket.alertedAt && ticket.status !== "cancelled" && ticket.status !== "executed";
 }
 
 function temperatureLabel(value) {
