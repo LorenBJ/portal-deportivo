@@ -1039,3 +1039,9 @@ input:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.reportExportButton {
+  min-width: 180px;
+  box-shadow: 0 12px 24px rgba(89, 214, 140, 0.24);
+}
+

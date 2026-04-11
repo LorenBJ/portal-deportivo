@@ -148,11 +148,11 @@ export function HistorialView() {
                   </div>
 
                   <div className="buttonRow wrapGap">
-                    <button className="button secondary" onClick={() => updateStatus(bet.id, "pending")} type="button">Pendiente</button>
-                    <button className="button secondary" onClick={() => updateStatus(bet.id, "won")} type="button">Ganada</button>
-                    <button className="button secondary" onClick={() => updateStatus(bet.id, "lost")} type="button">Perdida</button>
                     {isEditing ? (
                       <>
+                        <button className="button secondary" onClick={() => updateStatus(bet.id, "pending")} type="button">Pendiente</button>
+                        <button className="button success" onClick={() => updateStatus(bet.id, "won")} type="button">Ganada</button>
+                        <button className="button danger" onClick={() => updateStatus(bet.id, "lost")} type="button">Perdida</button>
                         <button className="button success" onClick={() => saveEditing(bet.id)} type="button">Guardar</button>
                         <button className="button secondary" onClick={cancelEditing} type="button">Cancelar</button>
                       </>
@@ -177,3 +177,4 @@ function statusLabel(status) {
   if (status === "lost") return "Perdida";
   return "Pendiente";
 }
+

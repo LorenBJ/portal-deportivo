@@ -719,7 +719,7 @@ export function BotView() {
                       <button className="button danger" type="button" onClick={() => settleAcceptedTicket(ticket.id, "lost")}>Perdida</button>
                       {isEditing ? (
                         <>
-                          <button className="button primary" type="button" onClick={() => saveAcceptedEdit(ticket.id)}>Guardar</button>
+                          <button className="button success" type="button" onClick={() => saveAcceptedEdit(ticket.id)}>Guardar</button>
                           <button className="button secondary" type="button" onClick={cancelEditingAccepted}>Cancelar</button>
                         </>
                       ) : (
@@ -780,5 +780,6 @@ function tagClass(status) {
   if (status === "cancelled" || status === "lost" || status === "dismissed") return "lost";
   return "pending";
 }
+
 
 

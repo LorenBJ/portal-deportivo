@@ -112,7 +112,7 @@ export function ReportsView() {
             <p className="eyebrow">Informes</p>
             <h2>Exportacion de resultados</h2>
           </div>
-          <button className="button primary" onClick={exportPdf} type="button">Exportar PDF</button>
+          <button className="button success reportExportButton" onClick={exportPdf} type="button">Exportar PDF</button>
         </div>
         <p className="lead compactLead">Filtrá por fecha, estado o competición y exportá un resumen portable para compartir con otra IA o revisar fuera de la plataforma.</p>
         <div className="reportsFilterGrid">
@@ -183,3 +183,4 @@ function labelStatus(status) {
   if (status === "pending") return "Pendiente";
   return "Todos";
 }
+
