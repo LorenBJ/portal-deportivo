@@ -7,11 +7,23 @@ import { formatKickoff, formatPercent, formatSignedPercent, formatStatus, format
 import { usePortalFeed } from "@/components/use-portal-feed";
 
 const AGENDA_FILTERS_KEY = "portal-deportivo-agenda-filters";
+const PRIORITY_COMPETITIONS = [
+  "Liga Profesional Argentina",
+  "Brasileirao Serie A",
+  "Premier League",
+  "La Liga",
+  "Bundesliga",
+  "Serie A",
+  "Ligue 1",
+  "UEFA Champions League",
+  "UEFA Europa League",
+  "Copa Libertadores",
+  "Copa Sudamericana"
+];
 
 export function AgendaView() {
   const { matches, meta, isLoading, error } = usePortalFeed();
   const [competition, setCompetition] = useState("all");
-  const [sport, setSport] = useState("all");
   const [status, setStatus] = useState("all");
   const [valueOnly, setValueOnly] = useState(true);
   const [selectedMatchId, setSelectedMatchId] = useState("");
@@ -24,7 +36,6 @@ export function AgendaView() {
       if (raw) {
         const parsed = JSON.parse(raw);
         setCompetition(parsed.competition ?? "all");
-        setSport(parsed.sport ?? "all");
         setStatus(parsed.status ?? "all");
         setValueOnly(parsed.valueOnly ?? true);
         setSelectedMatchId(parsed.selectedMatchId ?? "");
@@ -35,23 +46,27 @@ export function AgendaView() {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(AGENDA_FILTERS_KEY, JSON.stringify({ competition, sport, status, valueOnly, selectedMatchId }));
-  }, [competition, hydrated, selectedMatchId, sport, status, valueOnly]);
+    window.localStorage.setItem(AGENDA_FILTERS_KEY, JSON.stringify({ competition, status, valueOnly, selectedMatchId }));
+  }, [competition, hydrated, selectedMatchId, status, valueOnly]);
 
-  const competitions = useMemo(() => ["all", ...new Set(matches.map((match) => match.competition))], [matches]);
-  const sports = useMemo(() => ["all", ...new Set(matches.map((match) => match.sport))], [matches]);
+  const competitions = useMemo(() => {
+    const dynamic = new Set(matches.map((match) => match.competition).filter(Boolean));
+    const ordered = PRIORITY_COMPETITIONS.filter((item) => dynamic.has(item));
+    const extras = Array.from(dynamic).filter((item) => !PRIORITY_COMPETITIONS.includes(item)).sort((a, b) => a.localeCompare(b));
+    const missingPriority = PRIORITY_COMPETITIONS.filter((item) => !dynamic.has(item));
+    return ["all", ...ordered, ...extras, ...missingPriority];
+  }, [matches]);
 
   const filteredMatches = useMemo(() => {
     return matches
       .filter((match) => competition === "all" || match.competition === competition)
-      .filter((match) => sport === "all" || match.sport === sport)
       .filter((match) => status === "all" || match.status === status)
       .map((match) => ({
         ...match,
         odds: match.odds.filter((pick) => (!valueOnly || pick.recommended) && pick.edge > -0.02)
       }))
       .filter((match) => match.odds.length > 0);
-  }, [competition, matches, sport, status, valueOnly]);
+  }, [competition, matches, status, valueOnly]);
 
   const featuredPicks = useMemo(() => {
     return filteredMatches
@@ -89,12 +104,6 @@ export function AgendaView() {
           <span>Competicion</span>
           <select value={competition} onChange={(event) => setCompetition(event.target.value)}>
             {competitions.map((item) => <option key={item} value={item}>{item === "all" ? "Todas" : item}</option>)}
-          </select>
-        </label>
-        <label className="field">
-          <span>Deporte</span>
-          <select value={sport} onChange={(event) => setSport(event.target.value)}>
-            {sports.map((item) => <option key={item} value={item}>{item === "all" ? "Todos" : item}</option>)}
           </select>
         </label>
         <label className="field">
@@ -334,4 +343,3 @@ function getProviderIssue(meta) {
   if (meta.reason === "all_leagues_failed") return "Todas las ligas fallaron en el proveedor.";
   return "El proveedor no devolvio partidos utilizables.";
 }
-
