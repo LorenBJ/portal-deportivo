@@ -57,6 +57,10 @@ export function AnalystView({ initialMatchId = "", initialPrompt = "" }) {
     setPending(false);
   }
 
+  function loadStarter(starter) {
+    setInput(starter);
+  }
+
   return (
     <section className="contentGrid analystGrid">
       <aside className="panel stickyPanel analystSide">
@@ -84,7 +88,7 @@ export function AnalystView({ initialMatchId = "", initialPrompt = "" }) {
         ) : null}
         <div className="starterStack">
           {STARTERS.map((starter) => (
-            <button key={starter} className="button secondary fullWidth" disabled={analystBlocked} onClick={() => sendMessage(starter)} type="button">
+            <button key={starter} className="button secondary fullWidth" disabled={analystBlocked} onClick={() => loadStarter(starter)} type="button">
               {starter}
             </button>
           ))}
@@ -94,6 +98,7 @@ export function AnalystView({ initialMatchId = "", initialPrompt = "" }) {
       <div className="stack">
         <section className="panel analystPanel">
           <div className="sectionHead"><div><p className="eyebrow">Chat</p><h2>Analista conversacional</h2></div></div>
+          <p className="muted analystHint">Podés usar una pregunta sugerida o escribir una consulta propia. El analista responde sobre el partido seleccionado arriba.</p>
           {isLoading ? <p className="muted">Cargando contexto...</p> : null}
           {error ? <p className="warningText">{error}</p> : null}
           <div className="chatList">
@@ -102,12 +107,18 @@ export function AnalystView({ initialMatchId = "", initialPrompt = "" }) {
                 <span className="chatRole">{message.role === "assistant" ? "Analista" : "Vos"}</span>
                 <p>{message.content}</p>
               </article>
-            )) : <p className="muted">{analystBlocked ? "El analista necesita feed real para trabajar." : "Elegi un partido y hace una consulta."}</p>}
+            )) : <p className="muted">{analystBlocked ? "El analista necesita feed real para trabajar." : "Elegí un partido, escribí lo que quieras y tocá enviar."}</p>}
             {pending ? <article className="chatBubble assistant"><span className="chatRole">Analista</span><p>Pensando...</p></article> : null}
           </div>
           <div className="chatComposer">
-            <textarea className="chatInput" disabled={analystBlocked} value={input} onChange={(event) => setInput(event.target.value)} placeholder={analystBlocked ? "El analista esta bloqueado hasta recuperar feed real." : "Preguntame por un partido o mercado..."} rows={4} />
-            <button className="button primary" disabled={analystBlocked || pending || !selectedMatch} onClick={() => sendMessage()} type="button">Enviar</button>
+            <label className="field chatField">
+              <span>Consulta personalizada</span>
+              <textarea className="chatInput" disabled={analystBlocked} value={input} onChange={(event) => setInput(event.target.value)} placeholder={analystBlocked ? "El analista esta bloqueado hasta recuperar feed real." : "Ejemplo: armame una combinada conservadora para este partido, pero considerando contexto de clasico, faltas y ritmo."} rows={5} />
+            </label>
+            <div className="buttonRow analystActions">
+              <button className="button secondary" disabled={analystBlocked || pending} onClick={() => setInput("")} type="button">Limpiar</button>
+              <button className="button primary analystSendButton" disabled={analystBlocked || pending || !selectedMatch || !input.trim()} onClick={() => sendMessage()} type="button">Enviar consulta</button>
+            </div>
           </div>
         </section>
       </div>
@@ -122,4 +133,3 @@ function getAnalystBlockReason(meta) {
   if (meta.source === "error") return "El analista queda bloqueado hasta que vuelva el feed real.";
   return "El analista queda bloqueado hasta salir del modo demo.";
 }
-

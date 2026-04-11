@@ -91,6 +91,8 @@ export function BotView() {
         return {
           ...existing,
           ...ticket,
+          odds: existing.odds ?? ticket.odds,
+          stake: existing.stake ?? ticket.stake,
           status: existing.status,
           alertedAt: existing.alertedAt,
           executedAt: existing.executedAt,
@@ -165,6 +167,12 @@ export function BotView() {
     persistTickets(tickets.map((ticket) => (ticket.id === ticketId ? { ...ticket, ...patch } : ticket)));
   }
 
+  function updateTicketNumber(ticketId, key, value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    updateTicket(ticketId, { [key]: parsed });
+  }
+
   function acceptTicket(ticketId) {
     updateTicket(ticketId, { status: "executed", executedAt: new Date().toISOString() });
   }
@@ -178,7 +186,7 @@ export function BotView() {
 
     if (!target.betId) return;
 
-    const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result } : bet);
+    const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result, odds: target.odds, stake: target.stake } : bet);
     setBets(nextBets);
 
     const raw = window.localStorage.getItem(STATE_KEY);
@@ -335,8 +343,8 @@ export function BotView() {
                     <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
                   </div>
                   <div className="metricGrid spacious">
-                    <div className="metricCard"><span>Stake sugerido</span><strong>{formatMoney(ticket.stake)}</strong></div>
-                    <div className="metricCard"><span>Cuota actual</span><strong>{formatDecimal(ticket.odds)}</strong></div>
+                    <div className="metricCard"><span>Cuota a usar</span><input className="ticketEditInput" defaultValue={ticket.odds} min="1.01" onBlur={(event) => updateTicketNumber(ticket.id, "odds", event.target.value)} step="0.01" type="number" /></div>
+                    <div className="metricCard"><span>Monto a apostar</span><input className="ticketEditInput" defaultValue={ticket.stake} min="1" onBlur={(event) => updateTicketNumber(ticket.id, "stake", event.target.value)} step="1" type="number" /></div>
                     <div className="metricCard"><span>Tipo de ticket</span><strong>{ticket.source === "auto" ? "Automatico" : "Manual"}</strong></div>
                     <div className="metricCard"><span>Por que entro</span><strong>{ticket.note}</strong></div>
                   </div>
@@ -370,8 +378,8 @@ export function BotView() {
                     <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
                   </div>
                   <div className="metricGrid spacious">
-                    <div className="metricCard"><span>Stake</span><strong>{formatMoney(ticket.stake)}</strong></div>
-                    <div className="metricCard"><span>Cuota</span><strong>{formatDecimal(ticket.odds)}</strong></div>
+                    <div className="metricCard"><span>Cuota usada</span><strong>{formatDecimal(ticket.odds)}</strong></div>
+                    <div className="metricCard"><span>Monto apostado</span><strong>{formatMoney(ticket.stake)}</strong></div>
                     <div className="metricCard"><span>Alerta</span><strong>{ticket.alertedAt ? "Enviada" : "No"}</strong></div>
                     <div className="metricCard"><span>Aceptada</span><strong>{ticket.executedAt ? "Si" : "Pendiente"}</strong></div>
                   </div>
