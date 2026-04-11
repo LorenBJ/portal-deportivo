@@ -733,6 +733,7 @@ export function BotView() {
                     <div className="buttonRow wrapGap">
                       <button className="button success" type="button" onClick={() => settleAcceptedTicket(ticket.id, "won")}>Ganada</button>
                       <button className="button danger" type="button" onClick={() => settleAcceptedTicket(ticket.id, "lost")}>Perdida</button>
+                      <button className="button danger" type="button" onClick={() => removeAcceptedTicket(ticket.id)}>Eliminar</button>
                       {isEditing ? (
                         <>
                           <button className="button success" type="button" onClick={() => saveAcceptedEdit(ticket.id)}>Guardar</button>
@@ -796,6 +797,7 @@ function tagClass(status) {
   if (status === "cancelled" || status === "lost" || status === "dismissed") return "lost";
   return "pending";
 }
+
 
 
 
