@@ -960,3 +960,61 @@ input:focus {
   min-width: 200px;
   box-shadow: 0 12px 24px rgba(77, 161, 255, 0.22);
 }
+
+.coachHeaderPanel {
+  padding-bottom: 18px;
+}
+
+.coachHeaderTop {
+  align-items: flex-start;
+}
+
+.coachTabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.coachTab {
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(173, 187, 209, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+}
+
+.coachTab.active {
+  color: var(--text);
+  background: rgba(83, 211, 194, 0.12);
+  border-color: rgba(83, 211, 194, 0.28);
+}
+
+.coachGrid {
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+
+.coachOverviewGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.coachReportGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.coachQuickButtons .button {
+  min-width: 84px;
+}
+
+.compactCard {
+  padding: 16px;
+}
+
+@media (max-width: 1100px) {
+  .coachOverviewGrid,
+  .coachReportGrid,
+  .coachGrid {
+    grid-template-columns: 1fr;
+  }
+}

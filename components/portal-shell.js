@@ -7,7 +7,7 @@ const links = [
   { href: "/combinador", label: "Combinador" },
   { href: "/historial", label: "Historial" },
   { href: "/bot", label: "Bot" },
-  { href: "/analista", label: "Analista" }
+  { href: "/analista", label: "Cuerpo tecnico" }
 ];
 
 export function PortalShell({ pathname, children }) {
