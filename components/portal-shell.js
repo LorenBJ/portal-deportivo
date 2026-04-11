@@ -3,6 +3,7 @@
 const links = [
   { href: "/", label: "Inicio" },
   { href: "/agenda", label: "Agenda" },
+  { href: "/radar", label: "Radar" },
   { href: "/combinador", label: "Combinador" },
   { href: "/historial", label: "Historial" },
   { href: "/bot", label: "Bot" },

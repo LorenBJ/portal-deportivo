@@ -14,7 +14,7 @@ export default function HomePage() {
             </p>
             <div className="buttonRow">
               <Link className="button primary" href="/agenda">Ir a la agenda</Link>
-              <Link className="button secondary" href="/analista">Abrir analista</Link>
+              <Link className="button secondary" href="/radar">Abrir radar</Link>
             </div>
           </div>
 
@@ -24,14 +24,14 @@ export default function HomePage() {
             <ul className="cleanList">
               <li>Agenda del dia con mercados utiles.</li>
               <li>Lectura rapida por partido y contexto.</li>
-              <li>Analista para armar simples o combinadas.</li>
+              <li>Radar para medir ligas y equipos.</li>
               <li>Historial para medir acierto y ROI real.</li>
               <li>Bot lab para bankroll, temperatura y riesgo.</li>
             </ul>
           </aside>
         </section>
 
-        <section className="cardGrid cardGridWide">
+        <section className="cardGrid cardGridWide homeFourGrid">
           <article className="panel featurePanel">
             <p className="eyebrow">Agenda</p>
             <h2>Cabina de partidos</h2>
@@ -39,10 +39,10 @@ export default function HomePage() {
             <Link className="textLink" href="/agenda">Explorar agenda</Link>
           </article>
           <article className="panel featurePanel">
-            <p className="eyebrow">Combinador</p>
-            <h2>Combinadas mas sanas</h2>
-            <p className="muted">Seleccionar poco, sumar cuotas con criterio y controlar stake, retorno y riesgo.</p>
-            <Link className="textLink" href="/combinador">Preparar combinacion</Link>
+            <p className="eyebrow">Radar</p>
+            <h2>Ligas y equipos</h2>
+            <p className="muted">Ver qué segmentos conviene empujar según cobertura viva, ROI y acierto histórico.</p>
+            <Link className="textLink" href="/radar">Abrir radar</Link>
           </article>
           <article className="panel featurePanel">
             <p className="eyebrow">Bot</p>

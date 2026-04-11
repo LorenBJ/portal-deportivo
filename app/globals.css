@@ -730,3 +730,124 @@ input:focus {
   font-size: 0.84rem;
   line-height: 1.45;
 }
+
+.homeFourGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.radarHeroGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+}
+
+.radarMainGrid {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 24px;
+}
+
+.radarLeadPanel,
+.radarStatusPanel {
+  min-height: 100%;
+}
+
+.leagueCardButton {
+  width: 100%;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(56, 72, 98, 0.22), rgba(31, 44, 63, 0.96));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.leagueCardButton.active {
+  border-color: rgba(135, 239, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 34px rgba(0, 0, 0, 0.18);
+}
+
+.leagueCardTop,
+.logoLabelRow {
+  display: flex;
+  align-items: center;
+}
+
+.leagueCardTop {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.logoLabelRow {
+  gap: 12px;
+}
+
+.logoLabelRow.bigGap {
+  gap: 16px;
+}
+
+.logoBadge,
+.logoFallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(201, 213, 231, 0.14);
+  flex-shrink: 0;
+}
+
+.logoBadge.large,
+.logoFallback.large {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
+.logoFallback {
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.82rem;
+}
+
+.radarHeadlineCard {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(71, 88, 116, 0.2), rgba(37, 50, 72, 0.9));
+  border: 1px solid rgba(201, 213, 231, 0.16);
+}
+
+.headlineValue {
+  display: block;
+  font-size: 1.3rem;
+  margin-bottom: 6px;
+}
+
+.teamRadarGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.teamRadarCard {
+  min-height: 100%;
+}
+
+@media (max-width: 1180px) {
+  .homeFourGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .radarHeroGrid,
+  .radarMainGrid,
+  .teamRadarGrid,
+  .homeFourGrid {
+    grid-template-columns: 1fr;
+  }
+}
