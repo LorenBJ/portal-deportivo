@@ -10,6 +10,7 @@ const BOT_KEY = "portal-deportivo-bot";
 const TICKETS_KEY = "portal-deportivo-bot-tickets";
 const STATE_EVENT = "portal-state-sync";
 const HIDDEN_STATUSES = ["executed", "won", "lost", "cancelled", "dismissed"];
+const UNDO_MS = 8000;
 
 const DEFAULT_SETTINGS = {
   bankrollStart: 150000,
@@ -43,7 +44,9 @@ export function BotView() {
   const [notifyState, setNotifyState] = useState(null);
   const [hydrated, setHydrated] = useState(false);
   const [customOffer, setCustomOffer] = useState(DEFAULT_CUSTOM_OFFER);
+  const [recentSettlement, setRecentSettlement] = useState(null);
   const alertingRef = useRef(false);
+  const undoTimeoutRef = useRef(null);
 
   useEffect(() => {
     const rawState = window.localStorage.getItem(STATE_KEY);
@@ -74,6 +77,12 @@ export function BotView() {
       .then((data) => setTelegramConfigured(Boolean(data.telegramConfigured)))
       .catch(() => setTelegramConfigured(false))
       .finally(() => setHydrated(true));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -152,6 +161,32 @@ export function BotView() {
     window.dispatchEvent(new Event(STATE_EVENT));
   }
 
+  function persistTickets(next) {
+    setTickets(next);
+    window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
+  }
+
+  function scheduleUndo(payload) {
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    setRecentSettlement(payload);
+    undoTimeoutRef.current = setTimeout(() => {
+      setRecentSettlement(null);
+      undoTimeoutRef.current = null;
+    }, UNDO_MS);
+  }
+
+  function undoSettlement() {
+    if (!recentSettlement) return;
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+    persistTickets(recentSettlement.previousTickets);
+    persistStateBets(recentSettlement.previousBets);
+    setRecentSettlement(null);
+    setNotifyState("Cierre revertido.");
+  }
+
   function updateField(key, value) {
     if (key === "arbitrationEnabled") {
       setSettings((current) => ({ ...current, arbitrationEnabled: value }));
@@ -176,11 +211,6 @@ export function BotView() {
     window.localStorage.setItem(BOT_KEY, JSON.stringify(settings));
     setSavedAt(new Date().toISOString());
     setNotifyState("Setup guardado en este navegador.");
-  }
-
-  function persistTickets(next) {
-    setTickets(next);
-    window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
   }
 
   function updateTicket(ticketId, patch) {
@@ -237,6 +267,8 @@ export function BotView() {
     const target = tickets.find((ticket) => ticket.id === ticketId);
     if (!target) return;
 
+    const previousTickets = tickets;
+    const previousBets = bets;
     const nextTickets = tickets.map((ticket) => ticket.id === ticketId ? { ...ticket, status: result, settledAt: new Date().toISOString() } : ticket);
     persistTickets(nextTickets);
 
@@ -244,6 +276,14 @@ export function BotView() {
 
     const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result, odds: target.odds, stake: target.stake, potentialReturn: target.odds * target.stake } : bet);
     persistStateBets(nextBets);
+    setNotifyState(`Marcada como ${result === "won" ? "ganada" : "perdida"}.`);
+    scheduleUndo({
+      ticketId,
+      result,
+      previousTickets,
+      previousBets,
+      label: target.match
+    });
   }
 
   function updateCustomOffer(key, value) {
@@ -369,6 +409,12 @@ export function BotView() {
             <button className="button secondary" type="button" onClick={sendTestAlert}>Probar alerta</button>
           </div>
           {notifyState ? <p className="inlineNote">{notifyState}</p> : null}
+          {recentSettlement ? (
+            <div className="buttonRow wrapGap">
+              <span className="inlineNote">{recentSettlement.label}: cierre aplicado. Tenés unos segundos para deshacer.</span>
+              <button className="button secondary" onClick={undoSettlement} type="button">Deshacer</button>
+            </div>
+          ) : null}
           <div className="metricGrid spacious">
             <div className="metricCard"><span>Arbitraje</span><strong>{settings.arbitrationEnabled ? "Encendido" : "Apagado"}</strong></div>
             <div className="metricCard"><span>Ofertas</span><strong>{activeTickets.length}</strong></div>
