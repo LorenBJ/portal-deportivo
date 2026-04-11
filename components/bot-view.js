@@ -208,6 +208,10 @@ export function BotView() {
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
   const activeTickets = useMemo(() => tickets.filter((ticket) => !HIDDEN_STATUSES.includes(ticket.status)), [tickets]);
   const acceptedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed"), [tickets]);
+  const competitionOptions = useMemo(() => {
+    const dynamic = Array.from(new Set(matches.map((match) => match.competition).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    return ["all", ...dynamic];
+  }, [matches]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -625,6 +629,16 @@ export function BotView() {
               <option value="semi-auto">Semi-auto</option>
             </select>
           </label>
+          <label className="field"><span>Competicion del arbitraje</span><small className="fieldHelp">Si elegis una liga o copa, el bot genera ofertas solo de esa competencia. Si dejas Todas, toma solo las mas valiosas del feed completo.</small>
+            <select value={settings.competitionFocus ?? "all"} onChange={(event) => updateField("competitionFocus", event.target.value)}>
+              <option value="all">Todas</option>
+              {competitionOptions
+                .filter((option) => option !== "all")
+                .map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+            </select>
+          </label>
           <label className="checkboxRow"><input type="checkbox" checked={settings.autoGenerateTickets} onChange={(event) => updateField("autoGenerateTickets", event.target.checked)} /><span>Generar ofertas automaticas desde el feed</span></label>
           <label className="checkboxRow"><input type="checkbox" checked={settings.telegramAutoAlert} onChange={(event) => updateField("telegramAutoAlert", event.target.checked)} /><span>Enviar alertas automaticas por Telegram</span></label>
           <button className="button primary fullWidth" type="button" onClick={saveSettings}>Guardar setup</button>
@@ -797,6 +811,9 @@ function tagClass(status) {
   if (status === "cancelled" || status === "lost" || status === "dismissed") return "lost";
   return "pending";
 }
+
+
+
 
 
 
