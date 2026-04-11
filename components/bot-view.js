@@ -8,6 +8,7 @@ import { buildAutoTickets, buildBotTickets, getBotMetrics } from "@/lib/bot-lab"
 const STATE_KEY = "portal-deportivo-state";
 const BOT_KEY = "portal-deportivo-bot";
 const TICKETS_KEY = "portal-deportivo-bot-tickets";
+const STATE_EVENT = "portal-state-sync";
 const HIDDEN_STATUSES = ["executed", "won", "lost", "cancelled", "dismissed"];
 
 const DEFAULT_SETTINGS = {
@@ -83,7 +84,7 @@ export function BotView() {
 
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
   const activeTickets = useMemo(() => tickets.filter((ticket) => !HIDDEN_STATUSES.includes(ticket.status)), [tickets]);
-  const acceptedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost"), [tickets]);
+  const acceptedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed"), [tickets]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -108,7 +109,8 @@ export function BotView() {
           executedAt: existing.executedAt,
           settledAt: existing.settledAt,
           dismissedAt: existing.dismissedAt,
-          alertError: existing.alertError
+          alertError: existing.alertError,
+          betId: existing.betId ?? ticket.betId
         };
       });
       const hiddenWithoutDuplicate = preservedHidden.filter((ticket) => !nextActive.some((item) => item.id === ticket.id));
@@ -141,6 +143,14 @@ export function BotView() {
         alertingRef.current = false;
       });
   }, [activeTickets, settings.arbitrationEnabled, settings.autoMode, settings.telegramAutoAlert, telegramConfigured]);
+
+  function persistStateBets(nextBets) {
+    setBets(nextBets);
+    const raw = window.localStorage.getItem(STATE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    window.localStorage.setItem(STATE_KEY, JSON.stringify({ ...saved, bets: nextBets }));
+    window.dispatchEvent(new Event(STATE_EVENT));
+  }
 
   function updateField(key, value) {
     if (key === "arbitrationEnabled") {
@@ -184,7 +194,43 @@ export function BotView() {
   }
 
   function acceptTicket(ticketId) {
-    updateTicket(ticketId, { status: "executed", executedAt: new Date().toISOString() });
+    const target = tickets.find((ticket) => ticket.id === ticketId);
+    if (!target) return;
+
+    let nextBetId = target.betId;
+
+    if (!nextBetId) {
+      const [homeFromMatch = "Local", awayFromMatch = "Visitante"] = String(target.match || "").split(" vs ");
+      const createdBet = {
+        id: window.crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        picks: [{
+          id: window.crypto.randomUUID(),
+          market: target.market,
+          home: target.home || homeFromMatch,
+          away: target.away || awayFromMatch,
+          competition: target.competition || "Sin liga",
+          competitionLogo: target.competitionLogo || "",
+          homeLogo: target.homeLogo || "",
+          awayLogo: target.awayLogo || "",
+          price: target.odds
+        }],
+        stake: target.stake,
+        odds: target.odds,
+        probability: Number(target.confidence || 0),
+        potentialReturn: target.odds * target.stake,
+        status: "pending"
+      };
+
+      nextBetId = createdBet.id;
+      persistStateBets([createdBet, ...bets]);
+    }
+
+    updateTicket(ticketId, {
+      status: "executed",
+      executedAt: new Date().toISOString(),
+      betId: nextBetId
+    });
   }
 
   function settleAcceptedTicket(ticketId, result) {
@@ -197,11 +243,7 @@ export function BotView() {
     if (!target.betId) return;
 
     const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result, odds: target.odds, stake: target.stake, potentialReturn: target.odds * target.stake } : bet);
-    setBets(nextBets);
-
-    const raw = window.localStorage.getItem(STATE_KEY);
-    const saved = raw ? JSON.parse(raw) : {};
-    window.localStorage.setItem(STATE_KEY, JSON.stringify({ ...saved, bets: nextBets }));
+    persistStateBets(nextBets);
   }
 
   function updateCustomOffer(key, value) {
@@ -239,12 +281,7 @@ export function BotView() {
       status: "pending"
     };
 
-    const nextBets = [manualBet, ...bets];
-    setBets(nextBets);
-
-    const raw = window.localStorage.getItem(STATE_KEY);
-    const saved = raw ? JSON.parse(raw) : {};
-    window.localStorage.setItem(STATE_KEY, JSON.stringify({ ...saved, bets: nextBets }));
+    persistStateBets([manualBet, ...bets]);
     setCustomOffer(DEFAULT_CUSTOM_OFFER);
     setNotifyState("Oferta manual creada. Ya se sumó al historial y a la cola del bot.");
   }

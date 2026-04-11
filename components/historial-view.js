@@ -1,23 +1,37 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { getHistoryStats } from "@/lib/portal-core";
 
 const STORAGE_KEY = "portal-deportivo-state";
+const STATE_EVENT = "portal-state-sync";
 
 export function HistorialView() {
   const [bets, setBets] = useState([]);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const saved = JSON.parse(raw);
-      setBets(saved.bets ?? []);
-    } catch {
-      setBets([]);
+    function syncBets() {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        setBets([]);
+        return;
+      }
+      try {
+        const saved = JSON.parse(raw);
+        setBets(saved.bets ?? []);
+      } catch {
+        setBets([]);
+      }
     }
+
+    syncBets();
+    window.addEventListener("storage", syncBets);
+    window.addEventListener(STATE_EVENT, syncBets);
+    return () => {
+      window.removeEventListener("storage", syncBets);
+      window.removeEventListener(STATE_EVENT, syncBets);
+    };
   }, []);
 
   const stats = useMemo(() => getHistoryStats(bets), [bets]);
@@ -34,6 +48,7 @@ export function HistorialView() {
           bets: next
         })
       );
+      window.dispatchEvent(new Event(STATE_EVENT));
       return next;
     });
   }

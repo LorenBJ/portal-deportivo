@@ -6,6 +6,7 @@ import { buildLeagueRadar, describeLeagueStatus, getLeagueStatusBadge } from "@/
 import { formatDecimal, formatMoney } from "@/lib/format";
 
 const STATE_KEY = "portal-deportivo-state";
+const STATE_EVENT = "portal-state-sync";
 
 export function LeagueRadarView() {
   const { matches, meta, isLoading } = usePortalFeed();
@@ -13,14 +14,27 @@ export function LeagueRadarView() {
   const [selectedLeague, setSelectedLeague] = useState("");
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(STATE_KEY);
-    if (!raw) return;
-    try {
-      const saved = JSON.parse(raw);
-      setBets(saved.bets ?? []);
-    } catch {
-      setBets([]);
+    function syncBets() {
+      const raw = window.localStorage.getItem(STATE_KEY);
+      if (!raw) {
+        setBets([]);
+        return;
+      }
+      try {
+        const saved = JSON.parse(raw);
+        setBets(saved.bets ?? []);
+      } catch {
+        setBets([]);
+      }
     }
+
+    syncBets();
+    window.addEventListener("storage", syncBets);
+    window.addEventListener(STATE_EVENT, syncBets);
+    return () => {
+      window.removeEventListener("storage", syncBets);
+      window.removeEventListener(STATE_EVENT, syncBets);
+    };
   }, []);
 
   const radar = useMemo(() => buildLeagueRadar(matches, bets), [matches, bets]);
