@@ -85,9 +85,20 @@ export function BotView() {
         : [];
       const currentMap = new Map(current.map((ticket) => [ticket.id, ticket]));
       const preservedHidden = current.filter((ticket) => HIDDEN_STATUSES.includes(ticket.status));
-      const nextActive = [...generatedManual, ...generatedAuto].map((ticket) => currentMap.get(ticket.id)
-        ? { ...ticket, ...currentMap.get(ticket.id) }
-        : ticket);
+      const nextActive = [...generatedManual, ...generatedAuto].map((ticket) => {
+        const existing = currentMap.get(ticket.id);
+        if (!existing) return ticket;
+        return {
+          ...existing,
+          ...ticket,
+          status: existing.status,
+          alertedAt: existing.alertedAt,
+          executedAt: existing.executedAt,
+          settledAt: existing.settledAt,
+          dismissedAt: existing.dismissedAt,
+          alertError: existing.alertError
+        };
+      });
       const hiddenWithoutDuplicate = preservedHidden.filter((ticket) => !nextActive.some((item) => item.id === ticket.id));
       const next = [...nextActive, ...hiddenWithoutDuplicate];
       window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
@@ -313,15 +324,17 @@ export function BotView() {
                   <div className="rowSpread cardTopGap wrapGap">
                     <div>
                       <h3>{ticket.match}</h3>
-                      <p className="muted">{ticket.market}</p>
+                      <p className="muted"><strong>Mercado:</strong> {ticket.market}</p>
+                      <p className="muted">{ticket.marketSummary}</p>
+                      <p className="muted">{ticket.marketExplanation}</p>
                     </div>
                     <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
                   </div>
                   <div className="metricGrid spacious">
-                    <div className="metricCard"><span>Stake</span><strong>{formatMoney(ticket.stake)}</strong></div>
-                    <div className="metricCard"><span>Cuota</span><strong>{formatDecimal(ticket.odds)}</strong></div>
-                    <div className="metricCard"><span>Origen</span><strong>{ticket.source === "auto" ? "Automatico" : "Manual"}</strong></div>
-                    <div className="metricCard"><span>Lectura</span><strong>{ticket.note}</strong></div>
+                    <div className="metricCard"><span>Stake sugerido</span><strong>{formatMoney(ticket.stake)}</strong></div>
+                    <div className="metricCard"><span>Cuota actual</span><strong>{formatDecimal(ticket.odds)}</strong></div>
+                    <div className="metricCard"><span>Tipo de ticket</span><strong>{ticket.source === "auto" ? "Automatico" : "Manual"}</strong></div>
+                    <div className="metricCard"><span>Por que entro</span><strong>{ticket.note}</strong></div>
                   </div>
                   <div className="buttonRow wrapGap">
                     <button className="button success" type="button" onClick={() => updateTicket(ticket.id, { status: "approved" })}>Aceptar</button>
@@ -347,7 +360,9 @@ export function BotView() {
                   <div className="rowSpread cardTopGap wrapGap">
                     <div>
                       <h3>{ticket.match}</h3>
-                      <p className="muted">{ticket.market}</p>
+                      <p className="muted"><strong>Mercado:</strong> {ticket.market}</p>
+                      <p className="muted">{ticket.marketSummary}</p>
+                      <p className="muted">{ticket.marketExplanation}</p>
                     </div>
                     <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
                   </div>
