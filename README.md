@@ -20,7 +20,7 @@ OPENAI_REASONING_EFFORT=low
 API_FOOTBALL_KEY=
 API_FOOTBALL_TIMEZONE=America/Buenos_Aires
 API_FOOTBALL_CACHE_MS=180000
-API_FOOTBALL_LEAGUES=128:calendar,39:split,140:split,78:split,135:split,61:split,2:split,13:calendar,11:calendar
+API_FOOTBALL_LEAGUES=128:calendar,71:calendar,39:split,140:split,78:split,135:split,61:split,2:split,13:calendar,11:calendar
 ```
 
 ## Motor v2
@@ -34,6 +34,19 @@ API_FOOTBALL_LEAGUES=128:calendar,39:split,140:split,78:split,135:split,61:split
 ## Chat
 
 El analista usa el feed actual y el partido seleccionado. Si falta `OPENAI_API_KEY`, el chat no responde.
+
+## Ligas activas
+
+- Liga Profesional Argentina
+- Brasileirao Serie A
+- Premier League
+- La Liga
+- Bundesliga
+- Serie A
+- Ligue 1
+- UEFA Champions League
+- Copa Libertadores
+- Copa Sudamericana
 
 ## Notas de feed
 
