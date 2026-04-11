@@ -30,6 +30,7 @@ export function BotView() {
   const [tickets, setTickets] = useState([]);
   const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [notifyState, setNotifyState] = useState(null);
+  const [hydrated, setHydrated] = useState(false);
   const alertingRef = useRef(false);
 
   useEffect(() => {
@@ -59,14 +60,23 @@ export function BotView() {
     fetch("/api/notify")
       .then((response) => response.json())
       .then((data) => setTelegramConfigured(Boolean(data.telegramConfigured)))
-      .catch(() => setTelegramConfigured(false));
+      .catch(() => setTelegramConfigured(false))
+      .finally(() => setHydrated(true));
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem(BOT_KEY, JSON.stringify(settings));
+    setSavedAt(new Date().toISOString());
+  }, [hydrated, settings]);
 
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
   const activeTickets = useMemo(() => tickets.filter((ticket) => ticket.status !== "executed" && ticket.status !== "won" && ticket.status !== "lost" && ticket.status !== "cancelled"), [tickets]);
   const executedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost"), [tickets]);
 
   useEffect(() => {
+    if (!hydrated) return;
+
     const generatedManual = buildBotTickets(bets, settings);
     const generatedAuto = settings.arbitrationEnabled && settings.autoGenerateTickets ? buildAutoTickets(matches, settings, tickets) : [];
 
@@ -79,7 +89,7 @@ export function BotView() {
       window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
       return next;
     });
-  }, [bets, matches, settings.arbitrationEnabled, settings.autoGenerateTickets, settings.autoMode, settings.bankrollStart, settings.baseStakePct, settings.dailyBudget, settings.maxBetsPerDay, settings.minOdds, settings.maxOdds]);
+  }, [bets, hydrated, matches, settings]);
 
   useEffect(() => {
     if (!settings.arbitrationEnabled) return;
@@ -112,6 +122,7 @@ export function BotView() {
   function saveSettings() {
     window.localStorage.setItem(BOT_KEY, JSON.stringify(settings));
     setSavedAt(new Date().toISOString());
+    setNotifyState("Setup guardado en este navegador.");
   }
 
   function persistTickets(next) {
@@ -383,3 +394,4 @@ function tagClass(status) {
   if (status === "cancelled" || status === "lost") return "lost";
   return "pending";
 }
+

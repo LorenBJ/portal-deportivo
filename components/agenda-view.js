@@ -1,19 +1,42 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buildMatchInsight } from "@/lib/portal-core";
 import { formatKickoff, formatPercent, formatSignedPercent, formatStatus, formatTimestamp } from "@/lib/format";
 import { usePortalFeed } from "@/components/use-portal-feed";
 
+const AGENDA_FILTERS_KEY = "portal-deportivo-agenda-filters";
+
 export function AgendaView() {
+  const { matches, meta, isLoading, error } = usePortalFeed();
   const [competition, setCompetition] = useState("all");
   const [sport, setSport] = useState("all");
   const [status, setStatus] = useState("all");
   const [valueOnly, setValueOnly] = useState(true);
   const [selectedMatchId, setSelectedMatchId] = useState("");
-  const { matches, meta, isLoading, error } = usePortalFeed();
+  const [hydrated, setHydrated] = useState(false);
   const providerIssue = getProviderIssue(meta);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(AGENDA_FILTERS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setCompetition(parsed.competition ?? "all");
+        setSport(parsed.sport ?? "all");
+        setStatus(parsed.status ?? "all");
+        setValueOnly(parsed.valueOnly ?? true);
+        setSelectedMatchId(parsed.selectedMatchId ?? "");
+      }
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem(AGENDA_FILTERS_KEY, JSON.stringify({ competition, sport, status, valueOnly, selectedMatchId }));
+  }, [competition, hydrated, selectedMatchId, sport, status, valueOnly]);
 
   const competitions = useMemo(() => ["all", ...new Set(matches.map((match) => match.competition))], [matches]);
   const sports = useMemo(() => ["all", ...new Set(matches.map((match) => match.sport))], [matches]);
@@ -311,3 +334,4 @@ function getProviderIssue(meta) {
   if (meta.reason === "all_leagues_failed") return "Todas las ligas fallaron en el proveedor.";
   return "El proveedor no devolvio partidos utilizables.";
 }
+
