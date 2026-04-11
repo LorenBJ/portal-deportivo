@@ -84,7 +84,7 @@ export function BotView() {
   useEffect(() => {
     if (!settings.arbitrationEnabled) return;
     if (!telegramConfigured || !settings.telegramAutoAlert) return;
-    if (!(settings.autoMode === "semi-auto" || settings.autoMode === "live")) return;
+    if (settings.autoMode !== "semi-auto") return;
     if (alertingRef.current) return;
 
     const nextTicket = activeTickets.find((ticket) => shouldAutoAlert(ticket));
@@ -203,7 +203,7 @@ export function BotView() {
             Esta mesa te deja medir bankroll, calor, drawdown y volumen. El bot te avisa cuando aparece un ticket operativo y vos decidís el click final y cada cierre.
           </p>
           <div className="metricGrid spacious">
-            <div className="metricCard"><span>Bot</span><strong>{settings.autoMode === "semi-auto" ? "Semi-auto" : settings.autoMode === "live" ? "Live armado" : "Paper"}</strong></div>
+            <div className="metricCard"><span>Bot</span><strong>{settings.autoMode === "semi-auto" ? "Semi-auto" : "Paper"}</strong></div>
             <div className="metricCard"><span>Temperatura</span><strong>{formatDecimal(metrics.temperature, 0)}/100</strong></div>
             <div className="metricCard"><span>Bankroll</span><strong>{formatMoney(metrics.currentBankroll)}</strong></div>
             <div className="metricCard"><span>Unidad base</span><strong>{formatMoney(stakeUnit)}</strong></div>
@@ -248,11 +248,10 @@ export function BotView() {
           <label className="field"><span>Max apuestas por dia</span><small className="fieldHelp">Cantidad máxima de tickets activos que el bot puede dejarte en cola por día.</small><input type="number" value={settings.maxBetsPerDay} onChange={(event) => updateField("maxBetsPerDay", Number(event.target.value))} /></label>
           <label className="field"><span>Cuota minima</span><small className="fieldHelp">Límite inferior de cuota que aceptás operar.</small><input type="number" step="0.01" value={settings.minOdds} onChange={(event) => updateField("minOdds", Number(event.target.value))} /></label>
           <label className="field"><span>Cuota maxima</span><small className="fieldHelp">Límite superior de cuota que aceptás operar.</small><input type="number" step="0.01" value={settings.maxOdds} onChange={(event) => updateField("maxOdds", Number(event.target.value))} /></label>
-          <label className="field"><span>Modo de bot</span><small className="fieldHelp">Paper no alerta ni simula ejecución real. Semi-auto manda alertas y deja el click final en vos. Live armado es la antesala de una futura automatización más fuerte.</small>
+          <label className="field"><span>Modo de bot</span><small className="fieldHelp">Paper no alerta ni simula ejecución real. Semi-auto manda alertas y deja el click final en vos.</small>
             <select value={settings.autoMode} onChange={(event) => updateField("autoMode", event.target.value)}>
               <option value="paper">Paper</option>
               <option value="semi-auto">Semi-auto</option>
-              <option value="live">Live armado</option>
             </select>
           </label>
           <label className="checkboxRow"><input type="checkbox" checked={settings.autoGenerateTickets} onChange={(event) => updateField("autoGenerateTickets", event.target.checked)} /><span>Generar tickets automaticos desde el feed</span></label>
