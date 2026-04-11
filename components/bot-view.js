@@ -1,8 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatDecimal, formatMoney, formatPercent } from "@/lib/format";
-import { buildBotTickets, getBotMetrics } from "@/lib/bot-lab";
+import { usePortalFeed } from "@/components/use-portal-feed";
+import { formatDecimal, formatMoney } from "@/lib/format";
+import { buildAutoTickets, buildBotTickets, getBotMetrics } from "@/lib/bot-lab";
 
 const STATE_KEY = "portal-deportivo-state";
 const BOT_KEY = "portal-deportivo-bot";
@@ -16,10 +17,12 @@ const DEFAULT_SETTINGS = {
   minOdds: 1.1,
   maxOdds: 1.8,
   autoMode: "paper",
-  telegramAutoAlert: true
+  telegramAutoAlert: true,
+  autoGenerateTickets: true
 };
 
 export function BotView() {
+  const { matches } = usePortalFeed();
   const [bets, setBets] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [savedAt, setSavedAt] = useState(null);
@@ -63,16 +66,19 @@ export function BotView() {
   const executedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost"), [tickets]);
 
   useEffect(() => {
-    const generated = buildBotTickets(bets, settings);
+    const generatedManual = buildBotTickets(bets, settings);
+    const generatedAuto = settings.autoGenerateTickets ? buildAutoTickets(matches, settings, tickets) : [];
+
     setTickets((current) => {
-      const currentMap = new Map(current.map((ticket) => [ticket.betId, ticket]));
-      const preservedExecuted = current.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost");
-      const nextActive = generated.map((ticket) => currentMap.get(ticket.betId) ? { ...ticket, ...currentMap.get(ticket.betId) } : ticket);
-      const next = [...nextActive, ...preservedExecuted.filter((ticket) => !nextActive.some((item) => item.betId === ticket.betId))];
+      const currentMap = new Map(current.map((ticket) => [ticket.id, ticket]));
+      const preservedFinished = current.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost" || ticket.status === "cancelled");
+      const nextActive = [...generatedManual, ...generatedAuto].map((ticket) => currentMap.get(ticket.id) ? { ...ticket, ...currentMap.get(ticket.id) } : ticket);
+      const finishedWithoutDuplicate = preservedFinished.filter((ticket) => !nextActive.some((item) => item.id === ticket.id));
+      const next = [...nextActive, ...finishedWithoutDuplicate];
       window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
       return next;
     });
-  }, [bets, settings]);
+  }, [bets, matches, settings.autoGenerateTickets, settings.autoMode, settings.bankrollStart, settings.baseStakePct, settings.dailyBudget, settings.maxBetsPerDay, settings.minOdds, settings.maxOdds]);
 
   useEffect(() => {
     if (!telegramConfigured || !settings.telegramAutoAlert) return;
@@ -122,6 +128,8 @@ export function BotView() {
     const nextTickets = tickets.map((ticket) => ticket.id === ticketId ? { ...ticket, status: result, settledAt: new Date().toISOString() } : ticket);
     persistTickets(nextTickets);
 
+    if (!target.betId) return;
+
     const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result } : bet);
     setBets(nextBets);
 
@@ -169,6 +177,7 @@ export function BotView() {
   }
 
   const stakeUnit = Number(settings.bankrollStart || 0) * ((Number(settings.baseStakePct || 1) || 1) / 100);
+  const autoCount = activeTickets.filter((ticket) => ticket.source === "auto").length;
 
   return (
     <section className="stack">
@@ -195,7 +204,7 @@ export function BotView() {
             </div>
             <span className={`tag ${telegramConfigured ? "won" : "pending"}`}>{telegramConfigured ? "Telegram listo" : "Telegram apagado"}</span>
           </div>
-          <p className="muted">El sistema detecta tickets, te envía Telegram automático y vos hacés el click final en la casa. Después cerrás el resultado desde esta misma página.</p>
+          <p className="muted">Ahora el bot puede generar tickets automaticamente desde los picks del feed y avisarte por Telegram sin que armes la apuesta antes.</p>
           <div className="buttonRow wrapGap">
             <button className="button secondary" type="button" onClick={sendTestAlert}>Probar alerta</button>
           </div>
@@ -203,7 +212,7 @@ export function BotView() {
           <div className="metricGrid spacious">
             <div className="metricCard"><span>Canal</span><strong>Telegram</strong></div>
             <div className="metricCard"><span>Activos</span><strong>{activeTickets.length}</strong></div>
-            <div className="metricCard"><span>Ejecutados</span><strong>{executedTickets.length}</strong></div>
+            <div className="metricCard"><span>Auto tickets</span><strong>{autoCount}</strong></div>
             <div className="metricCard"><span>Auto-alerta</span><strong>{settings.telegramAutoAlert ? "Activa" : "Off"}</strong></div>
           </div>
         </article>
@@ -232,6 +241,7 @@ export function BotView() {
               <option value="live">Live armado</option>
             </select>
           </label>
+          <label className="checkboxRow"><input type="checkbox" checked={settings.autoGenerateTickets} onChange={(event) => updateField("autoGenerateTickets", event.target.checked)} /><span>Generar tickets automaticos desde el feed</span></label>
           <label className="checkboxRow"><input type="checkbox" checked={settings.telegramAutoAlert} onChange={(event) => updateField("telegramAutoAlert", event.target.checked)} /><span>Enviar alertas automaticas por Telegram</span></label>
           <button className="button primary fullWidth" type="button" onClick={saveSettings}>Guardar setup</button>
         </article>
@@ -266,7 +276,7 @@ export function BotView() {
                   <div className="metricGrid spacious">
                     <div className="metricCard"><span>Stake</span><strong>{formatMoney(ticket.stake)}</strong></div>
                     <div className="metricCard"><span>Cuota</span><strong>{formatDecimal(ticket.odds)}</strong></div>
-                    <div className="metricCard"><span>Modo</span><strong>{ticket.executionMode}</strong></div>
+                    <div className="metricCard"><span>Origen</span><strong>{ticket.source === "auto" ? "Automatico" : "Manual"}</strong></div>
                     <div className="metricCard"><span>Nota</span><strong>{ticket.note}</strong></div>
                   </div>
                   <div className="buttonRow wrapGap">
@@ -276,7 +286,7 @@ export function BotView() {
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Cancelar</button>
                   </div>
                 </article>
-              )) : <p className="muted">No hay tickets activos. El bot arma esta cola a partir de apuestas guardadas como pendientes.</p>}
+              )) : <p className="muted">No hay tickets activos. Si el feed trae picks aptos y tenés activada la generacion automática, van a aparecer solos acá.</p>}
             </div>
           </section>
 
