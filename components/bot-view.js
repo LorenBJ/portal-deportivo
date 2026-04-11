@@ -8,6 +8,7 @@ import { buildAutoTickets, buildBotTickets, getBotMetrics } from "@/lib/bot-lab"
 const STATE_KEY = "portal-deportivo-state";
 const BOT_KEY = "portal-deportivo-bot";
 const TICKETS_KEY = "portal-deportivo-bot-tickets";
+const HIDDEN_STATUSES = ["executed", "won", "lost", "cancelled", "dismissed"];
 
 const DEFAULT_SETTINGS = {
   bankrollStart: 150000,
@@ -71,21 +72,24 @@ export function BotView() {
   }, [hydrated, settings]);
 
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
-  const activeTickets = useMemo(() => tickets.filter((ticket) => ticket.status !== "executed" && ticket.status !== "won" && ticket.status !== "lost" && ticket.status !== "cancelled"), [tickets]);
+  const activeTickets = useMemo(() => tickets.filter((ticket) => !HIDDEN_STATUSES.includes(ticket.status)), [tickets]);
   const executedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost"), [tickets]);
 
   useEffect(() => {
     if (!hydrated) return;
 
-    const generatedManual = buildBotTickets(bets, settings);
-    const generatedAuto = settings.arbitrationEnabled && settings.autoGenerateTickets ? buildAutoTickets(matches, settings, tickets) : [];
-
     setTickets((current) => {
+      const generatedManual = buildBotTickets(bets, settings);
+      const generatedAuto = settings.arbitrationEnabled && settings.autoGenerateTickets
+        ? buildAutoTickets(matches, settings, current)
+        : [];
       const currentMap = new Map(current.map((ticket) => [ticket.id, ticket]));
-      const preservedFinished = current.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost" || ticket.status === "cancelled");
-      const nextActive = [...generatedManual, ...generatedAuto].map((ticket) => currentMap.get(ticket.id) ? { ...ticket, ...currentMap.get(ticket.id) } : ticket);
-      const finishedWithoutDuplicate = preservedFinished.filter((ticket) => !nextActive.some((item) => item.id === ticket.id));
-      const next = [...nextActive, ...finishedWithoutDuplicate];
+      const preservedHidden = current.filter((ticket) => HIDDEN_STATUSES.includes(ticket.status));
+      const nextActive = [...generatedManual, ...generatedAuto].map((ticket) => currentMap.get(ticket.id)
+        ? { ...ticket, ...currentMap.get(ticket.id) }
+        : ticket);
+      const hiddenWithoutDuplicate = preservedHidden.filter((ticket) => !nextActive.some((item) => item.id === ticket.id));
+      const next = [...nextActive, ...hiddenWithoutDuplicate];
       window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
       return next;
     });
@@ -116,6 +120,22 @@ export function BotView() {
   }, [activeTickets, settings.arbitrationEnabled, settings.autoMode, settings.telegramAutoAlert, telegramConfigured]);
 
   function updateField(key, value) {
+    if (key === "arbitrationEnabled") {
+      setSettings((current) => ({ ...current, arbitrationEnabled: value }));
+      if (!value) {
+        setTickets((current) => {
+          const next = current.map((ticket) => {
+            if (HIDDEN_STATUSES.includes(ticket.status)) return ticket;
+            return { ...ticket, status: "dismissed", dismissedAt: new Date().toISOString() };
+          });
+          window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
+          return next;
+        });
+        setNotifyState("Bot apagado. Los tickets activos se retiraron de la cola.");
+      }
+      return;
+    }
+
     setSettings((current) => ({ ...current, [key]: value }));
   }
 
@@ -301,13 +321,13 @@ export function BotView() {
                     <div className="metricCard"><span>Stake</span><strong>{formatMoney(ticket.stake)}</strong></div>
                     <div className="metricCard"><span>Cuota</span><strong>{formatDecimal(ticket.odds)}</strong></div>
                     <div className="metricCard"><span>Origen</span><strong>{ticket.source === "auto" ? "Automatico" : "Manual"}</strong></div>
-                    <div className="metricCard"><span>Nota</span><strong>{ticket.note}</strong></div>
+                    <div className="metricCard"><span>Lectura</span><strong>{ticket.note}</strong></div>
                   </div>
                   <div className="buttonRow wrapGap">
-                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "approved" })}>Aprobar</button>
+                    <button className="button success" type="button" onClick={() => updateTicket(ticket.id, { status: "approved" })}>Aceptar</button>
                     <button className="button secondary" type="button" onClick={() => alertTicket(ticket)} disabled={!telegramConfigured}>Reenviar alerta</button>
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed", executedAt: new Date().toISOString() })}>Pasar a ejecutadas</button>
-                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Cancelar</button>
+                    <button className="button danger" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Rechazar</button>
                   </div>
                 </article>
               )) : <p className="muted">No hay tickets activos. Si el arbitraje está encendido y el feed trae picks aptos, van a aparecer solos acá.</p>}
@@ -338,8 +358,8 @@ export function BotView() {
                     <div className="metricCard"><span>Click real</span><strong>{ticket.executedAt ? "Hecho" : "Pendiente"}</strong></div>
                   </div>
                   <div className="buttonRow wrapGap">
-                    <button className="button secondary" type="button" onClick={() => settleExecutedTicket(ticket.id, "won")}>Ganada</button>
-                    <button className="button secondary" type="button" onClick={() => settleExecutedTicket(ticket.id, "lost")}>Perdida</button>
+                    <button className="button success" type="button" onClick={() => settleExecutedTicket(ticket.id, "won")}>Ganada</button>
+                    <button className="button danger" type="button" onClick={() => settleExecutedTicket(ticket.id, "lost")}>Perdida</button>
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed" })}>Dejar ejecutada</button>
                   </div>
                 </article>
@@ -385,13 +405,13 @@ function ticketLabel(status) {
   if (status === "executed") return "Ejecutada";
   if (status === "won") return "Ganada";
   if (status === "lost") return "Perdida";
-  if (status === "cancelled") return "Cancelada";
+  if (status === "cancelled") return "Rechazada";
+  if (status === "dismissed") return "Retirada";
   return "Sugerida";
 }
 
 function tagClass(status) {
   if (status === "executed" || status === "alerted" || status === "won") return "won";
-  if (status === "cancelled" || status === "lost") return "lost";
+  if (status === "cancelled" || status === "lost" || status === "dismissed") return "lost";
   return "pending";
 }
-

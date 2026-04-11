@@ -904,3 +904,27 @@ input:focus {
   font-size: 1rem;
   font-weight: 700;
 }
+.arbitrationToggle.on {
+  border-color: rgba(99, 232, 165, 0.42);
+  background: linear-gradient(180deg, rgba(45, 101, 72, 0.62), rgba(22, 58, 39, 0.95));
+  color: #eafff2;
+  box-shadow: 0 0 0 1px rgba(99, 232, 165, 0.12) inset;
+}
+
+.arbitrationToggle.off {
+  border-color: rgba(255, 116, 116, 0.34);
+  background: linear-gradient(180deg, rgba(107, 41, 53, 0.56), rgba(67, 23, 32, 0.94));
+  color: #ffe8ea;
+}
+
+.button.success {
+  background: linear-gradient(135deg, rgba(89, 214, 140, 0.96), rgba(43, 145, 88, 0.96));
+  color: #071b11;
+  font-weight: 700;
+}
+
+.button.danger {
+  background: linear-gradient(135deg, rgba(255, 120, 128, 0.96), rgba(185, 58, 72, 0.96));
+  color: #2b0810;
+  font-weight: 700;
+}
