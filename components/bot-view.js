@@ -23,6 +23,15 @@ const DEFAULT_SETTINGS = {
   arbitrationEnabled: false
 };
 
+const DEFAULT_CUSTOM_OFFER = {
+  home: "",
+  away: "",
+  competition: "Personalizada",
+  market: "",
+  odds: 1.5,
+  stake: 1000
+};
+
 export function BotView() {
   const { matches } = usePortalFeed();
   const [bets, setBets] = useState([]);
@@ -32,6 +41,7 @@ export function BotView() {
   const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [notifyState, setNotifyState] = useState(null);
   const [hydrated, setHydrated] = useState(false);
+  const [customOffer, setCustomOffer] = useState(DEFAULT_CUSTOM_OFFER);
   const alertingRef = useRef(false);
 
   useEffect(() => {
@@ -186,12 +196,57 @@ export function BotView() {
 
     if (!target.betId) return;
 
-    const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result, odds: target.odds, stake: target.stake } : bet);
+    const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result, odds: target.odds, stake: target.stake, potentialReturn: target.odds * target.stake } : bet);
     setBets(nextBets);
 
     const raw = window.localStorage.getItem(STATE_KEY);
     const saved = raw ? JSON.parse(raw) : {};
     window.localStorage.setItem(STATE_KEY, JSON.stringify({ ...saved, bets: nextBets }));
+  }
+
+  function updateCustomOffer(key, value) {
+    setCustomOffer((current) => ({ ...current, [key]: value }));
+  }
+
+  function createCustomOffer() {
+    const home = customOffer.home.trim();
+    const away = customOffer.away.trim();
+    const market = customOffer.market.trim();
+    const competition = customOffer.competition.trim() || "Personalizada";
+    const odds = Number(customOffer.odds);
+    const stake = Number(customOffer.stake);
+
+    if (!home || !away || !market || !Number.isFinite(odds) || odds <= 1 || !Number.isFinite(stake) || stake <= 0) {
+      setNotifyState("Completa local, visitante, mercado, cuota y monto para crear la oferta manual.");
+      return;
+    }
+
+    const manualBet = {
+      id: window.crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      picks: [{
+        id: window.crypto.randomUUID(),
+        market,
+        home,
+        away,
+        competition,
+        price: odds
+      }],
+      stake,
+      odds,
+      probability: 0,
+      potentialReturn: odds * stake,
+      status: "pending"
+    };
+
+    const nextBets = [manualBet, ...bets];
+    setBets(nextBets);
+
+    const raw = window.localStorage.getItem(STATE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    window.localStorage.setItem(STATE_KEY, JSON.stringify({ ...saved, bets: nextBets }));
+    setCustomOffer(DEFAULT_CUSTOM_OFFER);
+    setNotifyState("Oferta manual creada. Ya se sumó al historial y a la cola del bot.");
   }
 
   async function sendTestAlert() {
@@ -311,6 +366,18 @@ export function BotView() {
           <label className="checkboxRow"><input type="checkbox" checked={settings.autoGenerateTickets} onChange={(event) => updateField("autoGenerateTickets", event.target.checked)} /><span>Generar tickets automaticos desde el feed</span></label>
           <label className="checkboxRow"><input type="checkbox" checked={settings.telegramAutoAlert} onChange={(event) => updateField("telegramAutoAlert", event.target.checked)} /><span>Enviar alertas automaticas por Telegram</span></label>
           <button className="button primary fullWidth" type="button" onClick={saveSettings}>Guardar setup</button>
+
+          <div className="customOfferBox">
+            <p className="eyebrow">Manual</p>
+            <h3>Cargar oferta personalizada</h3>
+            <label className="field"><span>Local</span><input type="text" value={customOffer.home} onChange={(event) => updateCustomOffer("home", event.target.value)} /></label>
+            <label className="field"><span>Visitante</span><input type="text" value={customOffer.away} onChange={(event) => updateCustomOffer("away", event.target.value)} /></label>
+            <label className="field"><span>Competicion</span><input type="text" value={customOffer.competition} onChange={(event) => updateCustomOffer("competition", event.target.value)} /></label>
+            <label className="field"><span>Mercado</span><input type="text" value={customOffer.market} onChange={(event) => updateCustomOffer("market", event.target.value)} /></label>
+            <label className="field"><span>Cuota</span><input min="1.01" step="0.01" type="number" value={customOffer.odds} onChange={(event) => updateCustomOffer("odds", Number(event.target.value))} /></label>
+            <label className="field"><span>Monto</span><input min="1" step="1" type="number" value={customOffer.stake} onChange={(event) => updateCustomOffer("stake", Number(event.target.value))} /></label>
+            <button className="button secondary fullWidth" type="button" onClick={createCustomOffer}>Crear oferta manual</button>
+          </div>
         </article>
 
         <div className="stack">
