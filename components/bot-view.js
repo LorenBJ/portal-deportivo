@@ -425,6 +425,22 @@ export function BotView() {
     setNotifyState("Ticket aceptado actualizado.");
   }
 
+  function removeAcceptedTicket(ticketId) {
+    const target = tickets.find((ticket) => ticket.id === ticketId);
+    if (!target) return;
+
+    const nextTickets = tickets.map((ticket) => ticket.id === ticketId ? { ...ticket, status: "cancelled", cancelledAt: new Date().toISOString() } : ticket);
+    persistTickets(nextTickets);
+
+    if (target.betId) {
+      const nextBets = bets.filter((bet) => bet.id !== target.betId);
+      persistStateBets(nextBets);
+    }
+
+    if (editingAcceptedId === ticketId) cancelEditingAccepted();
+    setNotifyState("Apuesta aceptada eliminada de la cola y del historial pendiente.");
+  }
+
   function settleAcceptedTicket(ticketId, result) {
     const target = tickets.find((ticket) => ticket.id === ticketId);
     if (!target) return;
@@ -780,6 +796,8 @@ function tagClass(status) {
   if (status === "cancelled" || status === "lost" || status === "dismissed") return "lost";
   return "pending";
 }
+
+
 
 
 
