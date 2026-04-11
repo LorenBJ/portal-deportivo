@@ -851,3 +851,22 @@ input:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.agendaOddBox {
+  text-align: left;
+}
+
+.oddMetaList {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.oddMetaList span {
+  line-height: 1.45;
+}
+
+.oddMetaList b {
+  color: var(--text);
+  font-weight: 600;
+}

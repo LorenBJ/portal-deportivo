@@ -114,54 +114,60 @@ export function AgendaView() {
                 <strong>{todayMatches.length} partidos visibles</strong>
               </div>
               <div className="stack compact">
-                {todayMatches.map((match) => (
-                  <button
-                    className={`matchCard cockpitCard matchSelectButton${selectedMatch?.id === match.id ? " active" : ""}`}
-                    key={match.id}
-                    onClick={() => setSelectedMatchId(match.id)}
-                    type="button"
-                  >
-                    <div className="rowSpread cardTopGap">
-                      <div>
-                        <div className="rowCompact wrapGap">
-                          <span className="tag">{match.competition}</span>
-                          <span className="tag subtle">{formatStatus(match.status)}</span>
+                {todayMatches.map((match) => {
+                  const recommendedCount = match.odds.filter((pick) => pick.recommended).length;
+                  const visiblePicks = match.odds
+                    .sort((a, b) => b.recommendationScore - a.recommendationScore)
+                    .slice(0, 4);
+
+                  return (
+                    <button
+                      className={`matchCard cockpitCard matchSelectButton${selectedMatch?.id === match.id ? " active" : ""}`}
+                      key={match.id}
+                      onClick={() => setSelectedMatchId(match.id)}
+                      type="button"
+                    >
+                      <div className="rowSpread cardTopGap">
+                        <div>
+                          <div className="rowCompact wrapGap">
+                            <span className="tag">{match.competition}</span>
+                            <span className="tag subtle">{formatStatus(match.status)}</span>
+                          </div>
+                          <h3>{match.home} vs {match.away}</h3>
+                          <p className="muted">{formatKickoff(match.kickoff)} | {match.venue}</p>
                         </div>
-                        <h3>{match.home} vs {match.away}</h3>
-                        <p className="muted">{formatKickoff(match.kickoff)} | {match.venue}</p>
+                        <strong className="score">{match.score}</strong>
                       </div>
-                      <strong className="score">{match.score}</strong>
-                    </div>
-                    <div className="metricGrid spacious">
-                      <div className="metricCard compactMetric">
-                        <span>Favorito modelo</span>
-                        <strong>{match.homeRating >= match.awayRating ? match.home : match.away}</strong>
+                      <div className="metricGrid spacious">
+                        <div className="metricCard compactMetric">
+                          <span>Favorito segun modelo</span>
+                          <strong>{match.homeRating >= match.awayRating ? match.home : match.away}</strong>
+                        </div>
+                        <div className="metricCard compactMetric">
+                          <span>Paridad del partido</span>
+                          <strong>{Math.abs(match.homeRating - match.awayRating) <= 45 ? "Alta" : Math.abs(match.homeRating - match.awayRating) <= 120 ? "Media" : "Baja"}</strong>
+                        </div>
+                        <div className="metricCard compactMetric">
+                          <span>Mercados con valor</span>
+                          <strong>{recommendedCount}</strong>
+                        </div>
                       </div>
-                      <div className="metricCard compactMetric">
-                        <span>Paridad</span>
-                        <strong>{Math.abs(match.homeRating - match.awayRating) <= 45 ? "Alta" : Math.abs(match.homeRating - match.awayRating) <= 120 ? "Media" : "Baja"}</strong>
-                      </div>
-                      <div className="metricCard compactMetric">
-                        <span>Picks aptos</span>
-                        <strong>{match.odds.filter((pick) => pick.recommended).length}</strong>
-                      </div>
-                    </div>
-                    <div className="oddsGrid">
-                      {match.odds
-                        .sort((a, b) => b.recommendationScore - a.recommendationScore)
-                        .slice(0, 4)
-                        .map((pick) => (
-                          <div className="oddBox" key={pick.id}>
+                      <div className="oddsGrid">
+                        {visiblePicks.map((pick) => (
+                          <div className="oddBox agendaOddBox" key={pick.id}>
                             <strong>{pick.market}</strong>
-                            <span>Cuota {pick.price.toFixed(2)}</span>
-                            <span>Prob. {formatPercent(pick.adjustedProbability)}</span>
-                            <span>Conf. {formatPercent(pick.confidence)}</span>
-                            <span className={pick.recommended ? "positiveText" : "muted"}>{pick.recommended ? "Apta" : "Cauta"} | Edge {formatSignedPercent(pick.edge)}</span>
+                            <div className="oddMetaList">
+                              <span><b>Cuota:</b> {pick.price.toFixed(2)}</span>
+                              <span><b>Prob. modelo:</b> {formatPercent(pick.adjustedProbability)}</span>
+                              <span><b>Confianza:</b> {formatPercent(pick.confidence)}</span>
+                              <span className={pick.recommended ? "positiveText" : "muted"}><b>Lectura:</b> {pick.recommended ? "Apta" : "Cauta"} | Edge {formatSignedPercent(pick.edge)}</span>
+                            </div>
                           </div>
                         ))}
-                    </div>
-                  </button>
-                ))}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -183,19 +189,19 @@ export function AgendaView() {
                     </div>
                     <div className="metricGrid">
                       <div className="metricCard">
-                        <span>Favorito</span>
+                        <span>Favorito del modelo</span>
                         <strong>{selectedInsight.favorite}</strong>
                       </div>
                       <div className="metricCard">
-                        <span>Paridad</span>
+                        <span>Paridad estimada</span>
                         <strong>{selectedInsight.parity}</strong>
                       </div>
                       <div className="metricCard">
-                        <span>Ritmo base</span>
+                        <span>Ritmo base esperado</span>
                         <strong>{selectedInsight.tempo}</strong>
                       </div>
                       <div className="metricCard">
-                        <span>Pick top</span>
+                        <span>Mejor mercado detectado</span>
                         <strong>{selectedInsight.bestPick?.market ?? "Sin señal"}</strong>
                       </div>
                     </div>
@@ -215,21 +221,25 @@ export function AgendaView() {
                     </div>
                     <div className="stack compact">
                       {selectedInsight.recommended.slice(0, 3).map((pick) => (
-                        <div className="oddBox" key={pick.id}>
+                        <div className="oddBox agendaOddBox" key={pick.id}>
                           <strong>{pick.market}</strong>
-                          <span>Cuota {pick.price.toFixed(2)}</span>
-                          <span>Conf. {formatPercent(pick.confidence)}</span>
-                          <span className="positiveText">Apta | Edge {formatSignedPercent(pick.edge)}</span>
+                          <div className="oddMetaList">
+                            <span><b>Cuota:</b> {pick.price.toFixed(2)}</span>
+                            <span><b>Confianza:</b> {formatPercent(pick.confidence)}</span>
+                            <span className="positiveText"><b>Lectura:</b> Apta | Edge {formatSignedPercent(pick.edge)}</span>
+                          </div>
                         </div>
                       ))}
                       {!selectedInsight.recommended.length ? <p className="muted">Sin picks aptos en este partido.</p> : null}
                       {selectedInsight.watchlist.length ? <p className="muted">Mercados a vigilar</p> : null}
                       {selectedInsight.watchlist.map((pick) => (
-                        <div className="oddBox watchBox" key={pick.id}>
+                        <div className="oddBox agendaOddBox watchBox" key={pick.id}>
                           <strong>{pick.market}</strong>
-                          <span>Cuota {pick.price.toFixed(2)}</span>
-                          <span>Conf. {formatPercent(pick.confidence)}</span>
-                          <span className="muted">Cauta | Edge {formatSignedPercent(pick.edge)}</span>
+                          <div className="oddMetaList">
+                            <span><b>Cuota:</b> {pick.price.toFixed(2)}</span>
+                            <span><b>Confianza:</b> {formatPercent(pick.confidence)}</span>
+                            <span className="muted"><b>Lectura:</b> Cauta | Edge {formatSignedPercent(pick.edge)}</span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -273,8 +283,8 @@ export function AgendaView() {
                           <p className="muted">{pick.home} vs {pick.away}</p>
                           <div className="metricGrid">
                             <div><span>Cuota</span><strong>{pick.price.toFixed(2)}</strong></div>
-                            <div><span>Prob.</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
-                            <div><span>Conf.</span><strong>{formatPercent(pick.confidence)}</strong></div>
+                            <div><span>Prob. modelo</span><strong>{formatPercent(pick.adjustedProbability)}</strong></div>
+                            <div><span>Confianza</span><strong>{formatPercent(pick.confidence)}</strong></div>
                             <div><span>Riesgo</span><strong>{pick.riskTier}</strong></div>
                           </div>
                         </article>
