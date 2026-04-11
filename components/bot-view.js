@@ -91,6 +91,45 @@ export function BotView() {
     setSavedAt(new Date().toISOString());
   }, [hydrated, settings]);
 
+  useEffect(() => {
+    if (!hydrated || !tickets.length) return;
+
+    const orphanSettled = tickets.filter((ticket) => (ticket.status === "won" || ticket.status === "lost") && !ticket.betId);
+    if (!orphanSettled.length) return;
+
+    const rebuiltBets = orphanSettled.map((ticket) => {
+      const [homeFromMatch = "Local", awayFromMatch = "Visitante"] = String(ticket.match || "").split(" vs ");
+      return {
+        id: window.crypto.randomUUID(),
+        createdAt: ticket.executedAt || ticket.settledAt || ticket.createdAt || new Date().toISOString(),
+        picks: [{
+          id: window.crypto.randomUUID(),
+          market: ticket.market,
+          home: ticket.home || homeFromMatch,
+          away: ticket.away || awayFromMatch,
+          competition: ticket.competition || "Sin liga",
+          competitionLogo: ticket.competitionLogo || "",
+          homeLogo: ticket.homeLogo || "",
+          awayLogo: ticket.awayLogo || "",
+          price: ticket.odds
+        }],
+        stake: ticket.stake,
+        odds: ticket.odds,
+        probability: Number(ticket.confidence || 0),
+        potentialReturn: Number(ticket.odds || 0) * Number(ticket.stake || 0),
+        status: ticket.status
+      };
+    });
+
+    const rebuiltMap = new Map(rebuiltBets.map((bet, index) => [orphanSettled[index].id, bet.id]));
+    const nextBets = [...rebuiltBets, ...bets];
+    const nextTickets = tickets.map((ticket) => rebuiltMap.has(ticket.id) ? { ...ticket, betId: rebuiltMap.get(ticket.id) } : ticket);
+
+    persistStateBets(nextBets);
+    persistTickets(nextTickets);
+    setNotifyState(`Recupere ${rebuiltBets.length} cierre${rebuiltBets.length > 1 ? "s" : ""} viejo${rebuiltBets.length > 1 ? "s" : ""} y los sume al historial.`);
+  }, [hydrated, tickets, bets]);
+
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
   const activeTickets = useMemo(() => tickets.filter((ticket) => !HIDDEN_STATUSES.includes(ticket.status)), [tickets]);
   const acceptedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed"), [tickets]);
@@ -590,3 +629,4 @@ function tagClass(status) {
   if (status === "cancelled" || status === "lost" || status === "dismissed") return "lost";
   return "pending";
 }
+
