@@ -133,6 +133,78 @@ export function BotView() {
     setNotifyState(`Recupere ${rebuiltBets.length} cierre${rebuiltBets.length > 1 ? "s" : ""} viejo${rebuiltBets.length > 1 ? "s" : ""} y los sume al historial.`);
   }, [hydrated, tickets, bets]);
 
+  useEffect(() => {
+    if (!hydrated || !tickets.length) return;
+
+    const acceptedWithoutPending = tickets.filter((ticket) => {
+      if (ticket.status !== "executed") return false;
+      if (!ticket.betId) return true;
+      const linkedBet = bets.find((bet) => bet.id === ticket.betId);
+      return !linkedBet || linkedBet.status !== "pending";
+    });
+
+    if (!acceptedWithoutPending.length) return;
+
+    let changed = false;
+    const nextBets = [...bets];
+    const ticketToBetId = new Map();
+
+    for (const ticket of acceptedWithoutPending) {
+      const [homeFromMatch = "Local", awayFromMatch = "Visitante"] = String(ticket.match || "").split(" vs ");
+      const existingIndex = ticket.betId ? nextBets.findIndex((bet) => bet.id === ticket.betId) : -1;
+
+      if (existingIndex >= 0) {
+        const existingBet = nextBets[existingIndex];
+        nextBets[existingIndex] = {
+          ...existingBet,
+          status: "pending",
+          odds: ticket.odds,
+          stake: ticket.stake,
+          potentialReturn: Number(ticket.odds || 0) * Number(ticket.stake || 0),
+          picks: (existingBet.picks ?? []).map((pick) => ({ ...pick, price: ticket.odds }))
+        };
+        changed = true;
+        continue;
+      }
+
+      const rebuiltBet = {
+        id: window.crypto.randomUUID(),
+        createdAt: ticket.executedAt || ticket.createdAt || new Date().toISOString(),
+        picks: [{
+          id: window.crypto.randomUUID(),
+          market: ticket.market,
+          home: ticket.home || homeFromMatch,
+          away: ticket.away || awayFromMatch,
+          competition: ticket.competition || "Sin liga",
+          competitionLogo: ticket.competitionLogo || "",
+          homeLogo: ticket.homeLogo || "",
+          awayLogo: ticket.awayLogo || "",
+          price: ticket.odds
+        }],
+        stake: ticket.stake,
+        odds: ticket.odds,
+        probability: Number(ticket.confidence || 0),
+        potentialReturn: Number(ticket.odds || 0) * Number(ticket.stake || 0),
+        status: "pending"
+      };
+
+      nextBets.unshift(rebuiltBet);
+      ticketToBetId.set(ticket.id, rebuiltBet.id);
+      changed = true;
+    }
+
+    if (!changed) return;
+
+    const nextTickets = ticketToBetId.size
+      ? tickets.map((ticket) => ticketToBetId.has(ticket.id) ? { ...ticket, betId: ticketToBetId.get(ticket.id) } : ticket)
+      : tickets;
+
+    persistStateBets(nextBets);
+    if (ticketToBetId.size) persistTickets(nextTickets);
+    setNotifyState("Reconcilié tickets aceptados con el historial pendiente.");
+  }, [hydrated, tickets, bets]);
+
+
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
   const activeTickets = useMemo(() => tickets.filter((ticket) => !HIDDEN_STATUSES.includes(ticket.status)), [tickets]);
   const acceptedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed"), [tickets]);
@@ -708,4 +780,5 @@ function tagClass(status) {
   if (status === "cancelled" || status === "lost" || status === "dismissed") return "lost";
   return "pending";
 }
+
 
