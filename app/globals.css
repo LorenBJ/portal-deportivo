@@ -870,3 +870,37 @@ input:focus {
   color: var(--text);
   font-weight: 600;
 }
+
+.arbitrationToggle {
+  min-width: 190px;
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(180deg, rgba(79, 95, 121, 0.18), rgba(38, 51, 73, 0.92));
+  color: var(--text);
+  text-align: left;
+}
+
+.arbitrationToggle.on {
+  border-color: rgba(135, 239, 225, 0.34);
+  box-shadow: 0 0 0 1px rgba(135, 239, 225, 0.08) inset;
+}
+
+.arbitrationToggle.off {
+  border-color: rgba(255, 143, 162, 0.24);
+}
+
+.toggleLabel {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-family: var(--font-mono), monospace;
+}
+
+.toggleState {
+  font-size: 1rem;
+  font-weight: 700;
+}

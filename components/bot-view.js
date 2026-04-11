@@ -18,7 +18,8 @@ const DEFAULT_SETTINGS = {
   maxOdds: 1.8,
   autoMode: "paper",
   telegramAutoAlert: true,
-  autoGenerateTickets: true
+  autoGenerateTickets: true,
+  arbitrationEnabled: false
 };
 
 export function BotView() {
@@ -67,7 +68,7 @@ export function BotView() {
 
   useEffect(() => {
     const generatedManual = buildBotTickets(bets, settings);
-    const generatedAuto = settings.autoGenerateTickets ? buildAutoTickets(matches, settings, tickets) : [];
+    const generatedAuto = settings.arbitrationEnabled && settings.autoGenerateTickets ? buildAutoTickets(matches, settings, tickets) : [];
 
     setTickets((current) => {
       const currentMap = new Map(current.map((ticket) => [ticket.id, ticket]));
@@ -78,9 +79,10 @@ export function BotView() {
       window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
       return next;
     });
-  }, [bets, matches, settings.autoGenerateTickets, settings.autoMode, settings.bankrollStart, settings.baseStakePct, settings.dailyBudget, settings.maxBetsPerDay, settings.minOdds, settings.maxOdds]);
+  }, [bets, matches, settings.arbitrationEnabled, settings.autoGenerateTickets, settings.autoMode, settings.bankrollStart, settings.baseStakePct, settings.dailyBudget, settings.maxBetsPerDay, settings.minOdds, settings.maxOdds]);
 
   useEffect(() => {
+    if (!settings.arbitrationEnabled) return;
     if (!telegramConfigured || !settings.telegramAutoAlert) return;
     if (!(settings.autoMode === "semi-auto" || settings.autoMode === "live")) return;
     if (alertingRef.current) return;
@@ -101,7 +103,7 @@ export function BotView() {
       .finally(() => {
         alertingRef.current = false;
       });
-  }, [activeTickets, settings.autoMode, settings.telegramAutoAlert, telegramConfigured]);
+  }, [activeTickets, settings.arbitrationEnabled, settings.autoMode, settings.telegramAutoAlert, telegramConfigured]);
 
   function updateField(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -183,8 +185,20 @@ export function BotView() {
     <section className="stack">
       <section className="botHeroGrid">
         <article className="panel botLeadPanel">
-          <p className="eyebrow">Bot Lab</p>
-          <h2>Orquestacion diaria y control de temperatura</h2>
+          <div className="rowSpread wrapGap">
+            <div>
+              <p className="eyebrow">Bot Lab</p>
+              <h2>Orquestacion diaria y control de temperatura</h2>
+            </div>
+            <button
+              className={`arbitrationToggle ${settings.arbitrationEnabled ? "on" : "off"}`}
+              onClick={() => updateField("arbitrationEnabled", !settings.arbitrationEnabled)}
+              type="button"
+            >
+              <span className="toggleLabel">Arbitraje</span>
+              <span className="toggleState">{settings.arbitrationEnabled ? "Encendido" : "Apagado"}</span>
+            </button>
+          </div>
           <p className="lead compactLead">
             Esta mesa te deja medir bankroll, calor, drawdown y volumen. El bot te avisa cuando aparece un ticket operativo y vos decidís el click final y cada cierre.
           </p>
@@ -204,13 +218,13 @@ export function BotView() {
             </div>
             <span className={`tag ${telegramConfigured ? "won" : "pending"}`}>{telegramConfigured ? "Telegram listo" : "Telegram apagado"}</span>
           </div>
-          <p className="muted">Ahora el bot puede generar tickets automaticamente desde los picks del feed y avisarte por Telegram sin que armes la apuesta antes.</p>
+          <p className="muted">Si el arbitraje está encendido, el bot puede generar tickets automaticamente desde el feed y avisarte por Telegram sin que armes la apuesta antes.</p>
           <div className="buttonRow wrapGap">
             <button className="button secondary" type="button" onClick={sendTestAlert}>Probar alerta</button>
           </div>
           {notifyState ? <p className="inlineNote">{notifyState}</p> : null}
           <div className="metricGrid spacious">
-            <div className="metricCard"><span>Canal</span><strong>Telegram</strong></div>
+            <div className="metricCard"><span>Arbitraje</span><strong>{settings.arbitrationEnabled ? "Encendido" : "Apagado"}</strong></div>
             <div className="metricCard"><span>Activos</span><strong>{activeTickets.length}</strong></div>
             <div className="metricCard"><span>Auto tickets</span><strong>{autoCount}</strong></div>
             <div className="metricCard"><span>Auto-alerta</span><strong>{settings.telegramAutoAlert ? "Activa" : "Off"}</strong></div>
@@ -286,7 +300,7 @@ export function BotView() {
                     <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Cancelar</button>
                   </div>
                 </article>
-              )) : <p className="muted">No hay tickets activos. Si el feed trae picks aptos y tenés activada la generacion automática, van a aparecer solos acá.</p>}
+              )) : <p className="muted">No hay tickets activos. Si el arbitraje está encendido y el feed trae picks aptos, van a aparecer solos acá.</p>}
             </div>
           </section>
 
