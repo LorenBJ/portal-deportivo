@@ -73,7 +73,7 @@ export function BotView() {
 
   const metrics = useMemo(() => getBotMetrics(bets, settings), [bets, settings]);
   const activeTickets = useMemo(() => tickets.filter((ticket) => !HIDDEN_STATUSES.includes(ticket.status)), [tickets]);
-  const executedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost"), [tickets]);
+  const acceptedTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "executed" || ticket.status === "won" || ticket.status === "lost"), [tickets]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -165,7 +165,11 @@ export function BotView() {
     persistTickets(tickets.map((ticket) => (ticket.id === ticketId ? { ...ticket, ...patch } : ticket)));
   }
 
-  function settleExecutedTicket(ticketId, result) {
+  function acceptTicket(ticketId) {
+    updateTicket(ticketId, { status: "executed", executedAt: new Date().toISOString() });
+  }
+
+  function settleAcceptedTicket(ticketId, result) {
     const target = tickets.find((ticket) => ticket.id === ticketId);
     if (!target) return;
 
@@ -267,7 +271,7 @@ export function BotView() {
           {notifyState ? <p className="inlineNote">{notifyState}</p> : null}
           <div className="metricGrid spacious">
             <div className="metricCard"><span>Arbitraje</span><strong>{settings.arbitrationEnabled ? "Encendido" : "Apagado"}</strong></div>
-            <div className="metricCard"><span>Activos</span><strong>{activeTickets.length}</strong></div>
+            <div className="metricCard"><span>Ofertas</span><strong>{activeTickets.length}</strong></div>
             <div className="metricCard"><span>Auto tickets</span><strong>{autoCount}</strong></div>
             <div className="metricCard"><span>Auto-alerta</span><strong>{settings.telegramAutoAlert ? "Activa" : "Off"}</strong></div>
           </div>
@@ -314,8 +318,8 @@ export function BotView() {
           <section className="panel">
             <div className="sectionHead">
               <div>
-                <p className="eyebrow">Tickets activos</p>
-                <h3>Cola de ejecucion</h3>
+                <p className="eyebrow">Ofertas</p>
+                <h3>Cola disponible para evaluar</h3>
               </div>
             </div>
             <div className="stack compact">
@@ -337,25 +341,24 @@ export function BotView() {
                     <div className="metricCard"><span>Por que entro</span><strong>{ticket.note}</strong></div>
                   </div>
                   <div className="buttonRow wrapGap">
-                    <button className="button success" type="button" onClick={() => updateTicket(ticket.id, { status: "approved" })}>Aceptar</button>
+                    <button className="button success" type="button" onClick={() => acceptTicket(ticket.id)}>Aceptar</button>
                     <button className="button secondary" type="button" onClick={() => alertTicket(ticket)} disabled={!telegramConfigured}>Reenviar alerta</button>
-                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed", executedAt: new Date().toISOString() })}>Pasar a ejecutadas</button>
                     <button className="button danger" type="button" onClick={() => updateTicket(ticket.id, { status: "cancelled" })}>Rechazar</button>
                   </div>
                 </article>
-              )) : <p className="muted">No hay tickets activos. Si el arbitraje está encendido y el feed trae picks aptos, van a aparecer solos acá.</p>}
+              )) : <p className="muted">No hay ofertas activas. Si el arbitraje está encendido y el feed trae picks aptos, van a aparecer solos acá.</p>}
             </div>
           </section>
 
           <section className="panel">
             <div className="sectionHead">
               <div>
-                <p className="eyebrow">Tickets ejecutados</p>
+                <p className="eyebrow">Tickets aceptados</p>
                 <h3>Cierre manual</h3>
               </div>
             </div>
             <div className="stack compact">
-              {executedTickets.length ? executedTickets.map((ticket) => (
+              {acceptedTickets.length ? acceptedTickets.map((ticket) => (
                 <article className="historyCard" key={ticket.id}>
                   <div className="rowSpread cardTopGap wrapGap">
                     <div>
@@ -370,15 +373,14 @@ export function BotView() {
                     <div className="metricCard"><span>Stake</span><strong>{formatMoney(ticket.stake)}</strong></div>
                     <div className="metricCard"><span>Cuota</span><strong>{formatDecimal(ticket.odds)}</strong></div>
                     <div className="metricCard"><span>Alerta</span><strong>{ticket.alertedAt ? "Enviada" : "No"}</strong></div>
-                    <div className="metricCard"><span>Click real</span><strong>{ticket.executedAt ? "Hecho" : "Pendiente"}</strong></div>
+                    <div className="metricCard"><span>Aceptada</span><strong>{ticket.executedAt ? "Si" : "Pendiente"}</strong></div>
                   </div>
                   <div className="buttonRow wrapGap">
-                    <button className="button success" type="button" onClick={() => settleExecutedTicket(ticket.id, "won")}>Ganada</button>
-                    <button className="button danger" type="button" onClick={() => settleExecutedTicket(ticket.id, "lost")}>Perdida</button>
-                    <button className="button secondary" type="button" onClick={() => updateTicket(ticket.id, { status: "executed" })}>Dejar ejecutada</button>
+                    <button className="button success" type="button" onClick={() => settleAcceptedTicket(ticket.id, "won")}>Ganada</button>
+                    <button className="button danger" type="button" onClick={() => settleAcceptedTicket(ticket.id, "lost")}>Perdida</button>
                   </div>
                 </article>
-              )) : <p className="muted">Cuando hagas el click real, pasá el ticket a ejecutadas y después cerralo como ganada o perdida.</p>}
+              )) : <p className="muted">Cuando aceptes una oferta, pasa a esta lista para marcarla luego como ganada o perdida.</p>}
             </div>
           </section>
 
@@ -417,7 +419,7 @@ function shouldAutoAlert(ticket) {
 function ticketLabel(status) {
   if (status === "approved") return "Aprobada";
   if (status === "alerted") return "Alertada";
-  if (status === "executed") return "Ejecutada";
+  if (status === "executed") return "Aceptada";
   if (status === "won") return "Ganada";
   if (status === "lost") return "Perdida";
   if (status === "cancelled") return "Rechazada";
