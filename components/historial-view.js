@@ -9,6 +9,8 @@ const STATE_EVENT = "portal-state-sync";
 
 export function HistorialView() {
   const [bets, setBets] = useState([]);
+  const [editingBetId, setEditingBetId] = useState(null);
+  const [editDraft, setEditDraft] = useState({ odds: "", stake: "" });
 
   useEffect(() => {
     function syncBets() {
@@ -36,21 +38,49 @@ export function HistorialView() {
 
   const stats = useMemo(() => getHistoryStats(bets), [bets]);
 
+  function persistBets(next) {
+    setBets(next);
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...saved,
+        bets: next
+      })
+    );
+    window.dispatchEvent(new Event(STATE_EVENT));
+  }
+
   function updateStatus(betId, status) {
-    setBets((current) => {
-      const next = current.map((bet) => (bet.id === betId ? { ...bet, status } : bet));
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      const saved = raw ? JSON.parse(raw) : {};
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          ...saved,
-          bets: next
-        })
-      );
-      window.dispatchEvent(new Event(STATE_EVENT));
-      return next;
-    });
+    persistBets(bets.map((bet) => (bet.id === betId ? { ...bet, status } : bet)));
+  }
+
+  function startEditing(bet) {
+    setEditingBetId(bet.id);
+    setEditDraft({ odds: String(Number(bet.odds || 0)), stake: String(Number(bet.stake || 0)) });
+  }
+
+  function cancelEditing() {
+    setEditingBetId(null);
+    setEditDraft({ odds: "", stake: "" });
+  }
+
+  function saveEditing(betId) {
+    const odds = Number(editDraft.odds);
+    const stake = Number(editDraft.stake);
+    if (!Number.isFinite(odds) || odds <= 1 || !Number.isFinite(stake) || stake <= 0) return;
+
+    const next = bets.map((bet) => bet.id === betId ? {
+      ...bet,
+      odds,
+      stake,
+      potentialReturn: odds * stake,
+      picks: (bet.picks ?? []).map((pick) => ({ ...pick, price: odds }))
+    } : bet);
+
+    persistBets(next);
+    cancelEditing();
   }
 
   return (
@@ -81,40 +111,58 @@ export function HistorialView() {
         </div>
         <div className="stack compact">
           {bets.length ? (
-            bets.map((bet) => (
-              <article className="historyCard" key={bet.id}>
-                <div className="rowSpread">
-                  <div>
-                    <h3>Apuesta {new Date(bet.createdAt).toLocaleDateString("es-AR")}</h3>
-                    <p className="muted">
-                      {bet.picks.length} seleccion{bet.picks.length > 1 ? "es" : ""} • cuota {bet.odds.toFixed(2)}
-                    </p>
-                  </div>
-                  <span className={`tag ${bet.status}`}>{statusLabel(bet.status)}</span>
-                </div>
-
-                <div className="stack mini">
-                  {bet.picks.map((pick) => (
-                    <div className="historyPick" key={pick.id}>
-                      <strong>{pick.market}</strong>
-                      <span>{pick.home} vs {pick.away}</span>
+            bets.map((bet) => {
+              const isEditing = editingBetId === bet.id;
+              return (
+                <article className="historyCard" key={bet.id}>
+                  <div className="rowSpread wrapGap">
+                    <div>
+                      <h3>Apuesta {new Date(bet.createdAt).toLocaleDateString("es-AR")}</h3>
+                      <p className="muted">
+                        {bet.picks.length} seleccion{bet.picks.length > 1 ? "es" : ""} • cuota {Number(bet.odds || 0).toFixed(2)}
+                      </p>
                     </div>
-                  ))}
-                </div>
+                    <span className={`tag ${bet.status}`}>{statusLabel(bet.status)}</span>
+                  </div>
 
-                <div className="metricGrid spacious">
-                  <div className="metricCard"><span>Stake</span><strong>{formatMoney(bet.stake)}</strong></div>
-                  <div className="metricCard"><span>Retorno potencial</span><strong>{formatMoney(bet.potentialReturn)}</strong></div>
-                  <div className="metricCard"><span>Probabilidad</span><strong>{formatPercent(bet.probability)}</strong></div>
-                </div>
+                  <div className="stack mini">
+                    {bet.picks.map((pick) => (
+                      <div className="historyPick" key={pick.id}>
+                        <strong>{pick.market}</strong>
+                        <span>{pick.home} vs {pick.away}</span>
+                      </div>
+                    ))}
+                  </div>
 
-                <div className="buttonRow">
-                  <button className="button secondary" onClick={() => updateStatus(bet.id, "pending")} type="button">Pendiente</button>
-                  <button className="button secondary" onClick={() => updateStatus(bet.id, "won")} type="button">Ganada</button>
-                  <button className="button secondary" onClick={() => updateStatus(bet.id, "lost")} type="button">Perdida</button>
-                </div>
-              </article>
-            ))
+                  <div className="metricGrid spacious">
+                    <div className="metricCard">
+                      <span>Stake</span>
+                      {isEditing ? <input className="ticketEditInput" min="1" step="1" type="number" value={editDraft.stake} onChange={(event) => setEditDraft((current) => ({ ...current, stake: event.target.value }))} /> : <strong>{formatMoney(bet.stake)}</strong>}
+                    </div>
+                    <div className="metricCard">
+                      <span>Cuota</span>
+                      {isEditing ? <input className="ticketEditInput" min="1.01" step="0.01" type="number" value={editDraft.odds} onChange={(event) => setEditDraft((current) => ({ ...current, odds: event.target.value }))} /> : <strong>{Number(bet.odds || 0).toFixed(2)}</strong>}
+                    </div>
+                    <div className="metricCard"><span>Retorno potencial</span><strong>{formatMoney(isEditing ? Number(editDraft.odds || 0) * Number(editDraft.stake || 0) : bet.potentialReturn)}</strong></div>
+                    <div className="metricCard"><span>Probabilidad</span><strong>{formatPercent(bet.probability)}</strong></div>
+                  </div>
+
+                  <div className="buttonRow wrapGap">
+                    <button className="button secondary" onClick={() => updateStatus(bet.id, "pending")} type="button">Pendiente</button>
+                    <button className="button secondary" onClick={() => updateStatus(bet.id, "won")} type="button">Ganada</button>
+                    <button className="button secondary" onClick={() => updateStatus(bet.id, "lost")} type="button">Perdida</button>
+                    {isEditing ? (
+                      <>
+                        <button className="button success" onClick={() => saveEditing(bet.id)} type="button">Guardar</button>
+                        <button className="button secondary" onClick={cancelEditing} type="button">Cancelar</button>
+                      </>
+                    ) : (
+                      <button className="button secondary" onClick={() => startEditing(bet)} type="button">Editar</button>
+                    )}
+                  </div>
+                </article>
+              );
+            })
           ) : (
             <p className="muted">Todavia no guardaste apuestas en el historial.</p>
           )}

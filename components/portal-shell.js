@@ -6,6 +6,7 @@ const links = [
   { href: "/radar", label: "Radar" },
   { href: "/combinador", label: "Combinador" },
   { href: "/historial", label: "Historial" },
+  { href: "/informes", label: "Informes" },
   { href: "/bot", label: "Bot" },
   { href: "/analista", label: "Cuerpo tecnico" }
 ];

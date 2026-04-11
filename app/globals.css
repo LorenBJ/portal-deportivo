@@ -1018,3 +1018,24 @@ input:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.reportsFilterGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.reportsSummaryGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.reportMarkets {
+  margin-top: 12px;
+}
+
+@media (max-width: 980px) {
+  .reportsFilterGrid,
+  .reportsSummaryGrid {
+    grid-template-columns: 1fr;
+  }
+}

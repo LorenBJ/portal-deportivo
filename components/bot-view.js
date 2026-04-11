@@ -1,4 +1,5 @@
-﻿"use client";
+﻿
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePortalFeed } from "@/components/use-portal-feed";
@@ -45,6 +46,8 @@ export function BotView() {
   const [hydrated, setHydrated] = useState(false);
   const [customOffer, setCustomOffer] = useState(DEFAULT_CUSTOM_OFFER);
   const [recentSettlement, setRecentSettlement] = useState(null);
+  const [editingAcceptedId, setEditingAcceptedId] = useState(null);
+  const [acceptedDraft, setAcceptedDraft] = useState({ odds: "", stake: "" });
   const alertingRef = useRef(false);
   const undoTimeoutRef = useRef(null);
 
@@ -238,7 +241,7 @@ export function BotView() {
           window.localStorage.setItem(TICKETS_KEY, JSON.stringify(next));
           return next;
         });
-        setNotifyState("Bot apagado. Los tickets activos se retiraron de la cola.");
+        setNotifyState("Bot apagado. Las ofertas activas se retiraron de la cola.");
       }
       return;
     }
@@ -293,6 +296,15 @@ export function BotView() {
 
       nextBetId = createdBet.id;
       persistStateBets([createdBet, ...bets]);
+    } else {
+      const nextBets = bets.map((bet) => bet.id === nextBetId ? {
+        ...bet,
+        odds: target.odds,
+        stake: target.stake,
+        potentialReturn: target.odds * target.stake,
+        picks: (bet.picks ?? []).map((pick) => ({ ...pick, price: target.odds }))
+      } : bet);
+      persistStateBets(nextBets);
     }
 
     updateTicket(ticketId, {
@@ -300,6 +312,45 @@ export function BotView() {
       executedAt: new Date().toISOString(),
       betId: nextBetId
     });
+  }
+
+  function startEditingAccepted(ticket) {
+    setEditingAcceptedId(ticket.id);
+    setAcceptedDraft({
+      odds: String(Number(ticket.odds || 0)),
+      stake: String(Number(ticket.stake || 0))
+    });
+  }
+
+  function cancelEditingAccepted() {
+    setEditingAcceptedId(null);
+    setAcceptedDraft({ odds: "", stake: "" });
+  }
+
+  function saveAcceptedEdit(ticketId) {
+    const odds = Number(acceptedDraft.odds);
+    const stake = Number(acceptedDraft.stake);
+    if (!Number.isFinite(odds) || odds <= 1 || !Number.isFinite(stake) || stake <= 0) return;
+
+    const target = tickets.find((ticket) => ticket.id === ticketId);
+    if (!target) return;
+
+    const nextTickets = tickets.map((ticket) => ticket.id === ticketId ? { ...ticket, odds, stake } : ticket);
+    persistTickets(nextTickets);
+
+    if (target.betId) {
+      const nextBets = bets.map((bet) => bet.id === target.betId ? {
+        ...bet,
+        odds,
+        stake,
+        potentialReturn: odds * stake,
+        picks: (bet.picks ?? []).map((pick) => ({ ...pick, price: odds }))
+      } : bet);
+      persistStateBets(nextBets);
+    }
+
+    cancelEditingAccepted();
+    setNotifyState("Ticket aceptado actualizado.");
   }
 
   function settleAcceptedTicket(ticketId, result) {
@@ -313,7 +364,14 @@ export function BotView() {
 
     if (!target.betId) return;
 
-    const nextBets = bets.map((bet) => bet.id === target.betId ? { ...bet, status: result, odds: target.odds, stake: target.stake, potentialReturn: target.odds * target.stake } : bet);
+    const nextBets = bets.map((bet) => bet.id === target.betId ? {
+      ...bet,
+      status: result,
+      odds: target.odds,
+      stake: target.stake,
+      potentialReturn: target.odds * target.stake,
+      picks: (bet.picks ?? []).map((pick) => ({ ...pick, price: target.odds }))
+    } : bet);
     persistStateBets(nextBets);
     setNotifyState(`Marcada como ${result === "won" ? "ganada" : "perdida"}.`);
     scheduleUndo({
@@ -415,18 +473,12 @@ export function BotView() {
               <p className="eyebrow">Bot Lab</p>
               <h2>Orquestacion diaria y control de temperatura</h2>
             </div>
-            <button
-              className={`arbitrationToggle ${settings.arbitrationEnabled ? "on" : "off"}`}
-              onClick={() => updateField("arbitrationEnabled", !settings.arbitrationEnabled)}
-              type="button"
-            >
+            <button className={`arbitrationToggle ${settings.arbitrationEnabled ? "on" : "off"}`} onClick={() => updateField("arbitrationEnabled", !settings.arbitrationEnabled)} type="button">
               <span className="toggleLabel">Arbitraje</span>
               <span className="toggleState">{settings.arbitrationEnabled ? "Encendido" : "Apagado"}</span>
             </button>
           </div>
-          <p className="lead compactLead">
-            Esta mesa te deja medir bankroll, calor, drawdown y volumen. El bot te avisa cuando aparece un ticket operativo y vos decidís el click final y cada cierre.
-          </p>
+          <p className="lead compactLead">Esta mesa te deja medir bankroll, calor, drawdown y volumen. El bot te avisa cuando aparece un ticket operativo y vos decidís el click final y cada cierre.</p>
           <div className="metricGrid spacious">
             <div className="metricCard"><span>Bot</span><strong>{settings.autoMode === "semi-auto" ? "Semi-auto" : "Paper"}</strong></div>
             <div className="metricCard"><span>Temperatura</span><strong>{formatDecimal(metrics.temperature, 0)}/100</strong></div>
@@ -443,7 +495,7 @@ export function BotView() {
             </div>
             <span className={`tag ${telegramConfigured ? "won" : "pending"}`}>{telegramConfigured ? "Telegram listo" : "Telegram apagado"}</span>
           </div>
-          <p className="muted">Si el arbitraje está encendido, el bot puede generar tickets automaticamente desde el feed y avisarte por Telegram sin que armes la apuesta antes.</p>
+          <p className="muted">Si el arbitraje está encendido, el bot puede generar ofertas automaticamente desde el feed y avisarte por Telegram sin que armes la apuesta antes.</p>
           <div className="buttonRow wrapGap">
             <button className="button secondary" type="button" onClick={sendTestAlert}>Probar alerta</button>
           </div>
@@ -476,7 +528,7 @@ export function BotView() {
           <label className="field"><span>Bankroll inicial</span><small className="fieldHelp">Capital base desde el que medís ganancias, pérdidas y drawdown.</small><input type="number" value={settings.bankrollStart} onChange={(event) => updateField("bankrollStart", Number(event.target.value))} /></label>
           <label className="field"><span>Presupuesto diario</span><small className="fieldHelp">Tope total que querés arriesgar por día.</small><input type="number" value={settings.dailyBudget} onChange={(event) => updateField("dailyBudget", Number(event.target.value))} /></label>
           <label className="field"><span>Stake base % bankroll</span><small className="fieldHelp">Porcentaje del bankroll que define tu unidad base. Si bankroll es 100.000 y ponés 1, la unidad base es 1.000.</small><input type="number" step="0.1" value={settings.baseStakePct} onChange={(event) => updateField("baseStakePct", Number(event.target.value))} /></label>
-          <label className="field"><span>Max apuestas por dia</span><small className="fieldHelp">Cantidad máxima de tickets activos que el bot puede dejarte en cola por día.</small><input type="number" value={settings.maxBetsPerDay} onChange={(event) => updateField("maxBetsPerDay", Number(event.target.value))} /></label>
+          <label className="field"><span>Max apuestas por dia</span><small className="fieldHelp">Cantidad máxima de ofertas que el bot puede dejarte en cola por día.</small><input type="number" value={settings.maxBetsPerDay} onChange={(event) => updateField("maxBetsPerDay", Number(event.target.value))} /></label>
           <label className="field"><span>Cuota minima</span><small className="fieldHelp">Límite inferior de cuota que aceptás operar.</small><input type="number" step="0.01" value={settings.minOdds} onChange={(event) => updateField("minOdds", Number(event.target.value))} /></label>
           <label className="field"><span>Cuota maxima</span><small className="fieldHelp">Límite superior de cuota que aceptás operar.</small><input type="number" step="0.01" value={settings.maxOdds} onChange={(event) => updateField("maxOdds", Number(event.target.value))} /></label>
           <label className="field"><span>Modo de bot</span><small className="fieldHelp">Paper no alerta ni simula ejecución real. Semi-auto manda alertas y deja el click final en vos.</small>
@@ -485,7 +537,7 @@ export function BotView() {
               <option value="semi-auto">Semi-auto</option>
             </select>
           </label>
-          <label className="checkboxRow"><input type="checkbox" checked={settings.autoGenerateTickets} onChange={(event) => updateField("autoGenerateTickets", event.target.checked)} /><span>Generar tickets automaticos desde el feed</span></label>
+          <label className="checkboxRow"><input type="checkbox" checked={settings.autoGenerateTickets} onChange={(event) => updateField("autoGenerateTickets", event.target.checked)} /><span>Generar ofertas automaticas desde el feed</span></label>
           <label className="checkboxRow"><input type="checkbox" checked={settings.telegramAutoAlert} onChange={(event) => updateField("telegramAutoAlert", event.target.checked)} /><span>Enviar alertas automaticas por Telegram</span></label>
           <button className="button primary fullWidth" type="button" onClick={saveSettings}>Guardar setup</button>
 
@@ -555,29 +607,56 @@ export function BotView() {
               </div>
             </div>
             <div className="stack compact">
-              {acceptedTickets.length ? acceptedTickets.map((ticket) => (
-                <article className="historyCard" key={ticket.id}>
-                  <div className="rowSpread cardTopGap wrapGap">
-                    <div>
-                      <h3>{ticket.match}</h3>
-                      <p className="muted"><strong>Mercado:</strong> {ticket.market}</p>
-                      <p className="muted">{ticket.marketSummary}</p>
-                      <p className="muted">{ticket.marketExplanation}</p>
+              {acceptedTickets.length ? acceptedTickets.map((ticket) => {
+                const isEditing = editingAcceptedId === ticket.id;
+                const previewOdds = Number(isEditing ? acceptedDraft.odds : ticket.odds);
+                const previewStake = Number(isEditing ? acceptedDraft.stake : ticket.stake);
+                return (
+                  <article className="historyCard" key={ticket.id}>
+                    <div className="rowSpread cardTopGap wrapGap">
+                      <div>
+                        <h3>{ticket.match}</h3>
+                        <p className="muted"><strong>Mercado:</strong> {ticket.market}</p>
+                        <p className="muted">{ticket.marketSummary}</p>
+                        <p className="muted">{ticket.marketExplanation}</p>
+                      </div>
+                      <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
                     </div>
-                    <span className={`tag ${tagClass(ticket.status)}`}>{ticketLabel(ticket.status)}</span>
-                  </div>
-                  <div className="metricGrid spacious">
-                    <div className="metricCard"><span>Cuota usada</span><strong>{formatDecimal(ticket.odds)}</strong></div>
-                    <div className="metricCard"><span>Monto apostado</span><strong>{formatMoney(ticket.stake)}</strong></div>
-                    <div className="metricCard"><span>Alerta</span><strong>{ticket.alertedAt ? "Enviada" : "No"}</strong></div>
-                    <div className="metricCard"><span>Aceptada</span><strong>{ticket.executedAt ? "Si" : "Pendiente"}</strong></div>
-                  </div>
-                  <div className="buttonRow wrapGap">
-                    <button className="button success" type="button" onClick={() => settleAcceptedTicket(ticket.id, "won")}>Ganada</button>
-                    <button className="button danger" type="button" onClick={() => settleAcceptedTicket(ticket.id, "lost")}>Perdida</button>
-                  </div>
-                </article>
-              )) : <p className="muted">Cuando aceptes una oferta, pasa a esta lista para marcarla luego como ganada o perdida.</p>}
+                    <div className="metricGrid spacious">
+                      <div className="metricCard">
+                        <span>Cuota usada</span>
+                        {isEditing ? (
+                          <input className="ticketEditInput" min="1.01" step="0.01" type="number" value={acceptedDraft.odds} onChange={(event) => setAcceptedDraft((current) => ({ ...current, odds: event.target.value }))} />
+                        ) : (
+                          <strong>{formatDecimal(ticket.odds)}</strong>
+                        )}
+                      </div>
+                      <div className="metricCard">
+                        <span>Monto apostado</span>
+                        {isEditing ? (
+                          <input className="ticketEditInput" min="1" step="1" type="number" value={acceptedDraft.stake} onChange={(event) => setAcceptedDraft((current) => ({ ...current, stake: event.target.value }))} />
+                        ) : (
+                          <strong>{formatMoney(ticket.stake)}</strong>
+                        )}
+                      </div>
+                      <div className="metricCard"><span>Retorno potencial</span><strong>{formatMoney((Number.isFinite(previewOdds) ? previewOdds : 0) * (Number.isFinite(previewStake) ? previewStake : 0))}</strong></div>
+                      <div className="metricCard"><span>Alerta</span><strong>{ticket.alertedAt ? "Enviada" : "No"}</strong></div>
+                    </div>
+                    <div className="buttonRow wrapGap">
+                      <button className="button success" type="button" onClick={() => settleAcceptedTicket(ticket.id, "won")}>Ganada</button>
+                      <button className="button danger" type="button" onClick={() => settleAcceptedTicket(ticket.id, "lost")}>Perdida</button>
+                      {isEditing ? (
+                        <>
+                          <button className="button primary" type="button" onClick={() => saveAcceptedEdit(ticket.id)}>Guardar</button>
+                          <button className="button secondary" type="button" onClick={cancelEditingAccepted}>Cancelar</button>
+                        </>
+                      ) : (
+                        <button className="button secondary" type="button" onClick={() => startEditingAccepted(ticket)}>Editar</button>
+                      )}
+                    </div>
+                  </article>
+                );
+              }) : <p className="muted">Cuando aceptes una oferta, pasa a esta lista para marcarla luego como ganada o perdida.</p>}
             </div>
           </section>
 
