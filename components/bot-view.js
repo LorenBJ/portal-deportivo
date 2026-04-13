@@ -629,6 +629,15 @@ export function BotView() {
               <option value="semi-auto">Semi-auto</option>
             </select>
           </label>
+          <label className="field"><span>Dia del arbitraje</span><small className="fieldHelp">Eleg� si quer�s ofertas para hoy, ma�ana, dentro de 2 o 3 d�as, o una vista amplia de los pr�ximos 7 d�as.</small>
+            <select value={settings.dayFocus ?? "today"} onChange={(event) => updateField("dayFocus", event.target.value)}>
+              <option value="today">Hoy</option>
+              <option value="tomorrow">Manana</option>
+              <option value="plus2">En 2 dias</option>
+              <option value="plus3">En 3 dias</option>
+              <option value="week">Proximos 7 dias</option>
+            </select>
+          </label>
           <label className="field"><span>Competicion del arbitraje</span><small className="fieldHelp">Si elegis una liga o copa, el bot genera ofertas solo de esa competencia. Si dejas Todas, toma solo las mas valiosas del feed completo.</small>
             <select value={settings.competitionFocus ?? "all"} onChange={(event) => updateField("competitionFocus", event.target.value)}>
               <option value="all">Todas</option>
